@@ -103,22 +103,25 @@ Model::Model(std::string fileName) {
     in.close();
 }
 
-void Model::draw_model(TGAImage& framebuffer, int width, int height) const {
+void Model::draw_model(TGAImage& framebuffer, int width, int height, TGAColor color) const {
     for (auto& face : faces)
     {
-		for (int i = 0; i < 3; i++) {
-			Vec3f v0_raw = verts[face.corners[i].v];
-        	Vec3f v1_raw = verts[face.corners[(i + 1) % 3].v];
+        Vec3f v0 = verts[face.corners[0].v];
+        Vec3f v1 = verts[face.corners[1].v];
+        Vec3f v2 = verts[face.corners[2].v];
 
-			int ax = (v0_raw.x + 1.0f) * width / 2.0f;
-        	int ay = (v0_raw.y + 1.0f) * height / 2.0f;
-        	int bx = (v1_raw.x + 1.0f) * width / 2.0f;
-       	 	int by = (v1_raw.y + 1.0f) * height / 2.0f;
 
-			//int ay = (1.0f - (v0_raw.y + 1.0f) / 2.0f) * height;
+        /* переводим из [-1, 1] в [0, 2], и делим ширину с высотой на 2 так как переводим 
+         виртульные 2 единицы в реальные width пикселей */
 
-        	line(ax, ay, bx, by, framebuffer, red);
-		}
+        int ax = (v0.x + 1.0f) * width / 2.0f; 
+        int ay = (v0.y + 1.0f) * height / 2.0f;
+        int bx = (v1.x + 1.0f) * width / 2.0f;
+        int by = (v1.y + 1.0f) * height / 2.0f;
+        int cx = (v2.x + 1.0f) * width / 2.0f;
+        int cy = (v2.y + 1.0f) * height / 2.0f;
+
+        triangle(ax, ay, bx, by, cx, cy, framebuffer, color);
     }
 
 

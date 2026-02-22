@@ -8,7 +8,7 @@ struct Vec3f
     float x, y, z;
 };
 
-// позиция, vt текстура, vn нормаль
+// v позиция, vt текстура, vn нормаль
 struct VertIndices {
     int v, t, n; // Один "угол" треугольника
 };
@@ -27,5 +27,5 @@ class Model
 public:
     Model(std::string fileName);
 
-    void draw_model(struct TGAImage& framebuffer, int width, int height) const;
+    void draw_model(struct TGAImage& framebuffer, int width, int height, struct TGAColor color) const;
 };

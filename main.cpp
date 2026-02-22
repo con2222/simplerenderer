@@ -16,17 +16,16 @@ int main(int argc, char** argv) {
     constexpr int height = SIZE;
     TGAImage framebuffer(width, height, TGAImage::RGB);
 
-    Model model(HEAD);
-
-    model.draw_model(framebuffer, width, height);
+    triangle(  7, 45, 35, 100, 45,  60, framebuffer, red);
+    triangle(120, 35, 90,   5, 45, 110, framebuffer, white);
+    triangle(115, 83, 80,  90, 85, 120, framebuffer, green);
 
     framebuffer.write_tga_file("framebuffer.tga");
     
     return 0;
 }
 
-/*git clone https://github.com/ssloy/tinyrenderer.git &&
-cd tinyrenderer &&
+/*
 cmake -Bbuild &&
 cmake --build build -j &&
 build/tinyrenderer obj/diablo3_pose/diablo3_pose.obj obj/floor.obj*/

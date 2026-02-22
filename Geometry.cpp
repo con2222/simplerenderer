@@ -3,7 +3,6 @@
 #include <cmath>
 #include <algorithm>
 
-
 void line(int ax, int ay, int bx, int by, TGAImage& framebuffer, TGAColor color)
 {
     bool steep = std::abs(ax - bx) < std::abs(ay - by);
@@ -46,6 +45,47 @@ void triangle(int ax, int ay, int bx, int by, int cx, int cy, TGAImage &framebuf
     line(ax, ay, bx, by, framebuffer, color);
     line(bx, by, cx, cy, framebuffer, color);
     line(cx, cy, ax, ay, framebuffer, color);
+}
+
+void triangle_scanline(int ax, int ay, int bx, int by, int cx, int cy, TGAImage &framebuffer, TGAColor color) {
+    int low_y = ay, mid_y = by, high_y = cy;
+    int low_x = ax, mid_x = bx, high_x = cx;
+
+    if (low_y > mid_y) { std::swap(low_y, mid_y); std::swap(low_x, mid_x); }
+    if (low_y > high_y) { std::swap(low_y, high_y); std::swap(low_x, high_x); }
+    if (mid_y > high_y) { std::swap(mid_y, high_y); std::swap(mid_x, high_x); }
+
+    for (int y = low_y; y <= mid_y; y++) {
+        if (low_y == mid_y) continue;
+        
+        float t1 = (y - low_y) / static_cast<float>(mid_y - low_y);
+        float t2 = (y - low_y) / static_cast<float>(high_y - low_y);
+
+        int x1 = low_x + std::round(t1 * (mid_x - low_x));
+        int x2 = low_x + std::round(t2 * (high_x - low_x));
+
+        if (x1 > x2) std::swap(x1, x2);
+
+        for (int x = x1 + 1; x < x2; x++) {
+            framebuffer.set(x, y, color);
+        }
+    }
+
+    for (int y = mid_y + 1; y <= high_y; y++) {
+        if (mid_y == high_y) continue;
+            
+        float t1 = (y - mid_y) / static_cast<float>(high_y - mid_y);
+        float t2 = (y - low_y) / static_cast<float>(high_y - low_y);
+
+        int x1 = mid_x + std::round(t1 * (high_x - mid_x));
+        int x2 = low_x + std::round(t2 * (high_x - low_x));
+
+        if (x1 > x2) std::swap(x1, x2);
+
+        for (int x = x1 + 1; x < x2; x++) {
+            framebuffer.set(x, y, color);
+        }
+    }
 }
 
 void draw_fat_point(int x, int y, TGAImage& framebuffer, TGAColor color, int size)
