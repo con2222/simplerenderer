@@ -22,27 +22,24 @@ void line(int ax, int ay, int bx, int by, TGAImage& framebuffer, TGAColor color)
         std::swap(ax, bx);
         std::swap(ay, by);
     }
-    int y = ax;
-    float error = 0;
-    float slope = (by - ay) / static_cast<float>(bx - ax); // угловой коэффициент прямой
+    int y = ay;
+    int ierror = 0;
+    int slope = std::abs(by - ay) * 2;
     for (int x = ax; x <= bx; x++)
     {
         if (steep)
         {
-            framebuffer.set(y, x, white);
+            framebuffer.set(y, x, color);
         } else
         {
             framebuffer.set(x, y, color);
         }
-        /* на сколько следующая точка по идее должна быть по y0 * 0.4 * n, 
-         * следовательно, так как точки на экране целые, то y либо остается прежним либо увеличивается на 1, 
-         * следовательно при угле уже > 0.5 нужно повысить y на 1
-         */
-        error = (by - ay) / static_cast<float>(bx - ax);
-        if (error > .5f)
+        /* чтобы убрать деление умножаем угловой коэфф на dx, а для 0.5f в условии домножаем на 2 */
+        ierror += slope;
+        if (ierror > bx - ax)
         {
             y += by > ay ? 1 : -1;
-            error -= .5f;
+            ierror -= 2 * (bx - ax);
         }
     }
 }
@@ -77,4 +74,5 @@ build/tinyrenderer obj/diablo3_pose/diablo3_pose.obj obj/floor.obj*/
 
 //2.24 sec
 //1.7 sec
+//1.8
 //1.8
