@@ -1,5 +1,7 @@
 #include <cmath>
 #include "tgaimage.h"
+#include <ctime>
+#include <cstdlib>
 
 constexpr TGAColor white   = {255, 255, 255, 255}; // attention, BGRA order
 constexpr TGAColor green   = {  0, 255,   0, 255};
@@ -20,16 +22,27 @@ void line(int ax, int ay, int bx, int by, TGAImage& framebuffer, TGAColor color)
         std::swap(ax, bx);
         std::swap(ay, by);
     }
+    int y = ax;
+    float error = 0;
+    float slope = (by - ay) / static_cast<float>(bx - ax); // угловой коэффициент прямой
     for (int x = ax; x <= bx; x++)
     {
-        float t = (x - ax) / static_cast<float>(bx - ax);
-        int y = std::round(ay + t * (by - ay));
         if (steep)
         {
             framebuffer.set(y, x, white);
         } else
         {
             framebuffer.set(x, y, color);
+        }
+        /* на сколько следующая точка по идее должна быть по y0 * 0.4 * n, 
+         * следовательно, так как точки на экране целые, то y либо остается прежним либо увеличивается на 1, 
+         * следовательно при угле уже > 0.5 нужно повысить y на 1
+         */
+        error = (by - ay) / static_cast<float>(bx - ax);
+        if (error > .5f)
+        {
+            y += by > ay ? 1 : -1;
+            error -= .5f;
         }
     }
 }
@@ -40,18 +53,17 @@ int main(int argc, char** argv) {
     constexpr int height = 64;
     TGAImage framebuffer(width, height, TGAImage::RGB);
 
-    int ax =  7, ay =  3;
-    int bx = 12, by = 37;
-    int cx = 62, cy = 53;
-
-    framebuffer.set(ax, ay, white);
-    framebuffer.set(bx, by, white);
-    framebuffer.set(cx, cy, white);
+    std::srand(std::time({}));
     
-    line(ax, ay, bx, by, framebuffer, blue);
-    line(bx, by, cx, cy, framebuffer, red);
-    line(cx, cy, ax, ay, framebuffer, yellow);
-    line(ax, ay, cx, cy, framebuffer, green);
+    for (int i = 0; i < (1 << 24); i++)
+    {
+        int ax = rand() % width, ay = rand() % height;
+        int bx = rand() % width, by = rand() % height;
+        line(ax, ay, bx, by, framebuffer, { static_cast<std::uint8_t>(rand() % 255), 
+        static_cast<std::uint8_t>(rand() % 255), 
+        static_cast<std::uint8_t>(rand() % 255), 
+        static_cast<std::uint8_t>(rand() % 255)  });
+    }
 
     framebuffer.write_tga_file("framebuffer.tga");
     return 0;
@@ -62,3 +74,7 @@ cd tinyrenderer &&
 cmake -Bbuild &&
 cmake --build build -j &&
 build/tinyrenderer obj/diablo3_pose/diablo3_pose.obj obj/floor.obj*/
+
+//2.24 sec
+//1.7 sec
+//1.8
