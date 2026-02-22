@@ -32,6 +32,9 @@ Model::Model(std::string fileName) {
     if (in.is_open())
     {
         while (std::getline(in, line)) {
+            if (line[0] == '#') {
+                continue;
+            }
             if (line[0] == 'v' && line[1] == ' ') {
                 size_t index = line.find_first_of(digits);
 
