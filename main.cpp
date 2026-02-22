@@ -3,6 +3,11 @@
 #include <ctime>
 #include <cstdlib>
 
+struct Vec3f
+{
+    float x, y, z;
+};
+
 constexpr TGAColor white   = {255, 255, 255, 255}; // attention, BGRA order
 constexpr TGAColor green   = {  0, 255,   0, 255};
 constexpr TGAColor red     = {  0,   0, 255, 255};
@@ -41,9 +46,11 @@ void line(int ax, int ay, int bx, int by, TGAImage& framebuffer, TGAColor color)
             y += by > ay ? 1 : -1;
             ierror -= 2 * (bx - ax);
         }
+        
+        /*y += (by > ay ? 1 : -1) * (ierror > bx - ax);
+        ierror -= 2 * (bx-ax)   * (ierror > bx - ax);*/
     }
 }
-
 
 int main(int argc, char** argv) {
     constexpr int width  = 64;
