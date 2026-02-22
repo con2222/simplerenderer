@@ -7,8 +7,10 @@
 #include <sstream>
 #include <iostream>
 
-#define SIZE 2048
+#define SIZE 4096
 #define POINT_SIZE 1
+#define HEAD "obj/african_head/african_head.obj"
+#define DIABLO "obj/diablo3_pose/diablo3_pose.obj"
 
 constexpr TGAColor white   = {255, 255, 255, 255}; // attention, BGRA order
 constexpr TGAColor green   = {  0, 255,   0, 255};
@@ -122,7 +124,7 @@ int main(int argc, char** argv) {
     int v, t, n;
     
     
-    std::ifstream in("obj/diablo3_pose/diablo3_pose.obj");
+    std::ifstream in(DIABLO);
     if (in.is_open())
     {
         while (std::getline(in, line1)) {
@@ -184,22 +186,19 @@ int main(int argc, char** argv) {
     
     for (auto& face : faces)
     {
-        int a = face.corners[0].v;
-        int b = face.corners[1].v;
-        
-        float x = points[a].x;
-        float y = points[a].y;
-        
-        int ax = (x + 1.0f) * width / 2.0f;
-        int ay = (y + 1.0f) * height / 2.0f;
-        
-        x = points[b].x;
-        y = points[b].y;
-        
-        int bx = (x + 1.0f) * width / 2.0f;
-        int by = (y + 1.0f) * height / 2.0f;
-        
-        line(ax, ay, bx, by, framebuffer, red1);
+		for (int i = 0; i < 3; i++) {
+			Vec3f v0_raw = points[face.corners[i].v];
+        	Vec3f v1_raw = points[face.corners[(i + 1) % 3].v];
+
+			int ax = (v0_raw.x + 1.0f) * width / 2.0f;
+        	int ay = (v0_raw.y + 1.0f) * height / 2.0f;
+        	int bx = (v1_raw.x + 1.0f) * width / 2.0f;
+       	 	int by = (v1_raw.y + 1.0f) * height / 2.0f;
+
+			//int ay = (1.0f - (v0_raw.y + 1.0f) / 2.0f) * height;
+
+        	line(ax, ay, bx, by, framebuffer, red1);
+		}
     }
     
     for (auto& p : points)
