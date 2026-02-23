@@ -1,6 +1,6 @@
 #pragma once
 
-#define SIZE 2048
+#define SIZE 128
 #define POINT_SIZE 1
 
 #define HEAD "obj/african_head/african_head.obj"

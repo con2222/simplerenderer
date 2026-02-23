@@ -58,15 +58,13 @@ void triangle_scanline(int ax, int ay, int bx, int by, int cx, int cy, TGAImage 
     for (int y = low_y; y <= mid_y; y++) {
         if (low_y == mid_y) continue;
         
-        float t1 = (y - low_y) / static_cast<float>(mid_y - low_y);
-        float t2 = (y - low_y) / static_cast<float>(high_y - low_y);
-
-        int x1 = low_x + std::round(t1 * (mid_x - low_x));
-        int x2 = low_x + std::round(t2 * (high_x - low_x));
+        int x1 = low_x + ((mid_x - low_x) * (y - low_y)) / (mid_y - low_y);
+        int x2 = low_x + ((high_x - low_x) * (y - low_y)) / (high_y - low_y);
+        
 
         if (x1 > x2) std::swap(x1, x2);
 
-        for (int x = x1 + 1; x < x2; x++) {
+        for (int x = std::min(x1, x2); x < std::max(x2, x1); x++) {
             framebuffer.set(x, y, color);
         }
     }
@@ -74,15 +72,12 @@ void triangle_scanline(int ax, int ay, int bx, int by, int cx, int cy, TGAImage 
     for (int y = mid_y + 1; y <= high_y; y++) {
         if (mid_y == high_y) continue;
             
-        float t1 = (y - mid_y) / static_cast<float>(high_y - mid_y);
-        float t2 = (y - low_y) / static_cast<float>(high_y - low_y);
-
-        int x1 = mid_x + std::round(t1 * (high_x - mid_x));
-        int x2 = low_x + std::round(t2 * (high_x - low_x));
+        int x1 = mid_x + ((high_x - mid_x) *(y - mid_y)) / (high_y - mid_y);
+        int x2 = low_x + ((high_x - low_x) * (y - low_y)) / (high_y - low_y);
 
         if (x1 > x2) std::swap(x1, x2);
 
-        for (int x = x1 + 1; x < x2; x++) {
+        for (int x = std::min(x1, x2); x < std::max(x2, x1); x++) {
             framebuffer.set(x, y, color);
         }
     }
