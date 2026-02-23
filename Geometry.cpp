@@ -1,6 +1,7 @@
 #include "Geometry.h"
 #include "color.h"
 #include <cmath>
+#include "ModelsNames.h"
 #include <algorithm>
 
 void line(int ax, int ay, int bx, int by, TGAImage& framebuffer, TGAColor color)
@@ -45,7 +46,7 @@ double signed_triangle_area(int x1, int y1, int x2, int y2, int x3, int y3) {
     return 0.5 * (x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2));
 }
 
-void triangle_barycentric_bounding_box(int ax, int ay, int bx, int by, int cx, int cy, TGAImage& framebuffer, TGAColor color) {
+void triangle_barycentric_bounding_box(int ax, int ay, int az, int bx, int by, int bz, int cx, int cy, int cz, TGAImage& framebuffer) {
     int bbminx = std::min(std::min(ax, bx), cx);
     int bbminy = std::min(std::min(ay, by), cy);
     int bbmaxx = std::max(std::max(ax, bx), cx);
@@ -60,18 +61,32 @@ void triangle_barycentric_bounding_box(int ax, int ay, int bx, int by, int cx, i
             double alpha = signed_triangle_area(x, y, bx, by, cx, cy) / total_area;
             double beta = signed_triangle_area(x, y, cx, cy, ax, ay) / total_area;   
             double gamma = signed_triangle_area(x, y, ax, ay, bx, by) / total_area;
+
+            TGAColor colorA = red;
+            TGAColor colorB = blue;
+            TGAColor colorC = green;
+
+            /* rainbow */
+            unsigned char R = alpha * colorA.bgra[2] + beta * colorB.bgra[2] + gamma * colorC.bgra[2];
+            unsigned char G = alpha * colorA.bgra[1] + beta * colorB.bgra[1] + gamma * colorC.bgra[1];
+            unsigned char B = alpha * colorA.bgra[0] + beta * colorB.bgra[0] + gamma * colorC.bgra[0];
+
             if (alpha < 0 || beta < 0 || gamma < 0) continue;
-            framebuffer.set(x, y, color);
+
+
+            /* wireframe */
+            if (alpha < THRESHOLD || beta < THRESHOLD || gamma < THRESHOLD) {
+                framebuffer.set(x, y, {R, G, B, 255});
+            }
+
+            /* use with GRAYSCALE */
+            //unsigned char z = static_cast<unsigned char>(alpha * az + beta * bz + gamma * cz);
         }
     }
 }
 
-void triangle(int ax, int ay, int bx, int by, int cx, int cy, TGAImage &framebuffer, TGAColor color) {
-    line(ax, ay, bx, by, framebuffer, color);
-    line(bx, by, cx, cy, framebuffer, color);
-    line(cx, cy, ax, ay, framebuffer, color);
-
-    triangle_barycentric_bounding_box(ax, ay, bx, by, cx, cy, framebuffer, color);
+void triangle(int ax, int ay, int az, int bx, int by, int bz, int cx, int cy, int cz, TGAImage &framebuffer) {
+    triangle_barycentric_bounding_box(ax, ay, az, bx, by, bz, cx, cy, cz, framebuffer);
 }
 
 void triangle_scanline(int ax, int ay, int bx, int by, int cx, int cy, TGAImage &framebuffer, TGAColor color) {

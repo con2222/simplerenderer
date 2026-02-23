@@ -16,11 +16,13 @@ int main(int argc, char** argv) {
     constexpr int height = SIZE;
     TGAImage framebuffer(width, height, TGAImage::RGB);
 
-    /*triangle(  7, 45, 35, 100, 45,  60, framebuffer, red);
-    triangle(120, 35, 90,   5, 45, 110, framebuffer, white);
-    triangle(115, 83, 80,  90, 85, 120, framebuffer, green);*/
+    int ax = 17, ay =  4, az =  13;
+    int bx = 55, by = 39, bz = 128;
+    int cx = 23, cy = 59, cz = 255;
 
-    Model model(HEAD);
+    //triangle(ax, ay, az, bx, by, bz, cx, cy, cz, framebuffer);
+
+    Model model(DIABLO);
     model.draw_model(framebuffer, width, height, red);
 
     framebuffer.write_tga_file("framebuffer.tga");
