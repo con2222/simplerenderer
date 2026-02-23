@@ -124,7 +124,9 @@ void Model::draw_model(TGAImage& framebuffer, int width, int height, TGAColor co
         int cx = (v2.x + 1.0f) * width / 2.0f;
         int cy = (v2.y + 1.0f) * height / 2.0f;
 
-        triangle(ax, ay, bx, by, cx, cy, framebuffer, color);
+        TGAColor rnd;
+        for (int c = 0; c < 3; c++) rnd[c] = std::rand()%255;
+        triangle(ax, ay, bx, by, cx, cy, framebuffer, rnd);
     }
 
 

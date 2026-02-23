@@ -16,12 +16,12 @@ int main(int argc, char** argv) {
     constexpr int height = SIZE;
     TGAImage framebuffer(width, height, TGAImage::RGB);
 
-    triangle(  7, 45, 35, 100, 45,  60, framebuffer, red);
-    triangle_scanline(7, 45, 35, 100, 45, 60, framebuffer, red);
+    /*triangle(  7, 45, 35, 100, 45,  60, framebuffer, red);
     triangle(120, 35, 90,   5, 45, 110, framebuffer, white);
-    triangle_scanline(120, 35, 90, 5, 45, 110, framebuffer, white);
-    triangle(115, 83, 80,  90, 85, 120, framebuffer, green);
-    triangle_scanline(115, 83, 80, 90, 85, 120, framebuffer, green);
+    triangle(115, 83, 80,  90, 85, 120, framebuffer, green);*/
+
+    Model model(HEAD);
+    model.draw_model(framebuffer, width, height, red);
 
     framebuffer.write_tga_file("framebuffer.tga");
     
