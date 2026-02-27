@@ -75,9 +75,11 @@ void triangle_barycentric_bounding_box(int ax, int ay, int az, int bx, int by, i
 
 
             /* wireframe */
-            if (alpha < THRESHOLD || beta < THRESHOLD || gamma < THRESHOLD) {
+            /*if (alpha < THRESHOLD || beta < THRESHOLD || gamma < THRESHOLD) {
                 framebuffer.set(x, y, {R, G, B, 255});
-            }
+            }*/
+
+            framebuffer.set(x, y, {R, G, B, 255});
 
             /* use with GRAYSCALE */
             //unsigned char z = static_cast<unsigned char>(alpha * az + beta * bz + gamma * cz);

@@ -23,10 +23,11 @@ int main(int argc, char** argv) {
     //triangle(ax, ay, az, bx, by, bz, cx, cy, cz, framebuffer);
 
     Model model(DIABLO);
-    model.draw_model(framebuffer, width, height, red);
+    //model.draw_model(framebuffer, width, height, red);
+
+    model.painters_algorithm_render(framebuffer, width, height, red);
 
     framebuffer.write_tga_file("framebuffer.tga");
-    
     return 0;
 }
 
