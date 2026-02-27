@@ -35,6 +35,6 @@ class Model
 public:
     Model(std::string fileName);
 
-    void draw_model(struct TGAImage& framebuffer, int width, int height, struct TGAColor color) const;
-    void painters_algorithm_render(struct TGAImage& framebuffer, int width, int height, TGAColor color); // draw triangles from back to front
+    void draw_model(struct TGAImage& framebuffer, TGAImage& zbuffer, int width, int height, struct TGAColor color) const;
+    void painters_algorithm_render(TGAImage& framebuffer, TGAImage& zbuffer, int width, int height, TGAColor color); // draw triangles from back to front
 };

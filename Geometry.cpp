@@ -46,7 +46,11 @@ double signed_triangle_area(int x1, int y1, int x2, int y2, int x3, int y3) {
     return 0.5 * (x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2));
 }
 
-void triangle_barycentric_bounding_box(int ax, int ay, int az, int bx, int by, int bz, int cx, int cy, int cz, TGAImage& framebuffer) {
+void triangle(int ax, int ay, int az, int bx, int by, int bz, int cx, int cy, int cz, TGAImage &framebuffer, TGAImage& zbuffer) {
+    triangle_barycentric_bounding_box(ax, ay, az, bx, by, bz, cx, cy, cz, framebuffer, zbuffer);
+}
+
+void triangle_barycentric_bounding_box(int ax, int ay, int az, int bx, int by, int bz, int cx, int cy, int cz, TGAImage& framebuffer, TGAImage& zbuffer) {
     int bbminx = std::min(std::min(ax, bx), cx);
     int bbminy = std::min(std::min(ay, by), cy);
     int bbmaxx = std::max(std::max(ax, bx), cx);
@@ -73,22 +77,19 @@ void triangle_barycentric_bounding_box(int ax, int ay, int az, int bx, int by, i
 
             if (alpha < 0 || beta < 0 || gamma < 0) continue;
 
+            unsigned char z = static_cast<unsigned char>(alpha * az + beta * bz + gamma * cz);
+
+            if (z > zbuffer.get(x, y).bgra[0]) {
+                zbuffer.set(x, y, {z});
+                framebuffer.set(x, y, {R, G, B, 255});
+            }
 
             /* wireframe */
             /*if (alpha < THRESHOLD || beta < THRESHOLD || gamma < THRESHOLD) {
                 framebuffer.set(x, y, {R, G, B, 255});
             }*/
-
-            framebuffer.set(x, y, {R, G, B, 255});
-
-            /* use with GRAYSCALE */
-            //unsigned char z = static_cast<unsigned char>(alpha * az + beta * bz + gamma * cz);
         }
     }
-}
-
-void triangle(int ax, int ay, int az, int bx, int by, int bz, int cx, int cy, int cz, TGAImage &framebuffer) {
-    triangle_barycentric_bounding_box(ax, ay, az, bx, by, bz, cx, cy, cz, framebuffer);
 }
 
 void triangle_scanline(int ax, int ay, int bx, int by, int cx, int cy, TGAImage &framebuffer, TGAColor color) {

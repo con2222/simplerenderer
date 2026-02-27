@@ -111,7 +111,7 @@ Model::Model(std::string fileName) {
     in.close();
 }
 
-void Model::draw_model(TGAImage& framebuffer, int width, int height, TGAColor color) const {
+void Model::draw_model(TGAImage& framebuffer, TGAImage& zbuffer, int width, int height, TGAColor color) const {
     for (auto& face : faces)
     {
         Vec3f v0 = verts[face.corners[0].v];
@@ -133,7 +133,7 @@ void Model::draw_model(TGAImage& framebuffer, int width, int height, TGAColor co
         int cz = (v2.z + 1.0f) * 255/2;
 
 
-        triangle(ax, ay, az, bx, by, bz, cx, cy, cz, framebuffer);
+        triangle(ax, ay, az, bx, by, bz, cx, cy, cz, framebuffer, zbuffer);
     }
 
 
@@ -146,7 +146,7 @@ void Model::draw_model(TGAImage& framebuffer, int width, int height, TGAColor co
     }
 }
 
-void Model::painters_algorithm_render(struct TGAImage &framebuffer, int width, int height, TGAColor color) {
+void Model::painters_algorithm_render(struct TGAImage &framebuffer, TGAImage& zbuffer, int width, int height, TGAColor color) {
 
     int frame_count = 0;
     std::string out_dir = "frames";
@@ -189,7 +189,7 @@ void Model::painters_algorithm_render(struct TGAImage &framebuffer, int width, i
 
 
 
-        triangle(ax, ay, az, bx, by, bz, cx, cy, cz, framebuffer);
+        triangle(ax, ay, az, bx, by, bz, cx, cy, cz, framebuffer, zbuffer);
 
         if (frame_count % save_every_n == 0) {
             std::string filename = out_dir + "/frame_" + std::to_string(frame_count / save_every_n) + ".tga";

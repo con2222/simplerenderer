@@ -15,6 +15,7 @@ int main(int argc, char** argv) {
     constexpr int width  = SIZE;
     constexpr int height = SIZE;
     TGAImage framebuffer(width, height, TGAImage::RGB);
+    TGAImage zbuffer(width, height, TGAImage::GRAYSCALE);
 
     int ax = 17, ay =  4, az =  13;
     int bx = 55, by = 39, bz = 128;
@@ -23,11 +24,10 @@ int main(int argc, char** argv) {
     //triangle(ax, ay, az, bx, by, bz, cx, cy, cz, framebuffer);
 
     Model model(DIABLO);
-    //model.draw_model(framebuffer, width, height, red);
-
-    model.painters_algorithm_render(framebuffer, width, height, red);
+    model.draw_model(framebuffer, zbuffer, width, height, red);
 
     framebuffer.write_tga_file("framebuffer.tga");
+    zbuffer.write_tga_file("zbuffer.tga");
     return 0;
 }
 
