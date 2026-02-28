@@ -13,7 +13,7 @@
 
 namespace fs = std::filesystem;
 
-std::ostream& operator<<(std::ostream& s, const Vec3f& v) {
+std::ostream& operator<<(std::ostream& s, const vec<3>& v) {
     s << "(" << v.x << ", " << v.y << ", " << v.z << ")" << std::endl;
     return s;
 }
@@ -29,7 +29,7 @@ std::ostream& operator<<(std::ostream& s, const Face& face) {
     return s;
 }
 
-Model::Model(std::string& fileName) {
+Model::Model(const std::string& fileName) {
     std::string line;
     std::string digits = "-0123456789";
 
@@ -52,7 +52,7 @@ Model::Model(std::string& fileName) {
                 float xt, yt, zt;
                 coords >> xt >> yt >> zt;
 
-                verts.push_back(Vec3f({xt, yt, zt}));
+                verts.push_back(vec<3>({xt, yt, zt}));
             } else if (line[0] == 'f' && line[1] == ' ') {
                 size_t index = line.find_first_of(digits);
 
@@ -94,7 +94,7 @@ Model::Model(std::string& fileName) {
                 float x, y, z;
                 coords >> x >> y >> z;
 
-                tex_coords.push_back(Vec3f({x, y, z}));
+                tex_coords.push_back(vec<3>({x, y, z}));
             } else if (line.substr(0, 2) == "vn") {
                 int index = line.find_first_of(digits);
 
@@ -106,7 +106,7 @@ Model::Model(std::string& fileName) {
                 float x, y, z;
                 coords >> x >> y >> z;
 
-                normals.push_back(Vec3f({x, y, z}));
+                normals.push_back(vec<3>({x, y, z}));
             }
 
         }
@@ -117,9 +117,9 @@ Model::Model(std::string& fileName) {
 void Model::draw_model(TGAImage& framebuffer, TGAImage& zbuffer, int width, int height, TGAColor color) const {
     for (auto& face : faces)
     {
-        Vec3f v0 = verts[face.corners[0].v];
-        Vec3f v1 = verts[face.corners[1].v];
-        Vec3f v2 = verts[face.corners[2].v];
+        vec<3> v0 = verts[face.corners[0].v];
+        vec<3> v1 = verts[face.corners[1].v];
+        vec<3> v2 = verts[face.corners[2].v];
 
 
         /* переводим из [-1, 1] в [0, 2], и делим ширину с высотой на 2 так как переводим 
@@ -159,9 +159,9 @@ void Model::painters_algorithm_render(struct TGAImage &framebuffer, TGAImage& zb
 
     std::vector<Triangle> triangles;
     for (auto& face : faces) {
-        Vec3f v0 = verts[face.corners[0].v];
-        Vec3f v1 = verts[face.corners[1].v];
-        Vec3f v2 = verts[face.corners[2].v];
+        vec<3> v0 = verts[face.corners[0].v];
+        vec<3> v1 = verts[face.corners[1].v];
+        vec<3> v2 = verts[face.corners[2].v];
 
         triangles.push_back({v0, v1, v2});
     }
@@ -208,5 +208,4 @@ void Model::painters_algorithm_render(struct TGAImage &framebuffer, TGAImage& zb
 
         draw_fat_point(px, py, framebuffer, white, POINT_SIZE);
     }
-
 }

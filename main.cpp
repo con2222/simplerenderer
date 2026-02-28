@@ -11,6 +11,12 @@
 #include "Color.h"
 
 
+vec3 rot(vec3 v) {
+    constexpr double a = M_PI/6; // 30 градусов
+    const matrix<3, 3> Ry = {{{std::cos(a), 0, std::sin(a)}, {0, 1, 0}, {-std::sin(a), 0, std::cos(a)}}};
+    return Ry * v;
+}
+
 int main(int argc, char** argv) {
     constexpr int width  = SIZE;
     constexpr int height = SIZE;

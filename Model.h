@@ -2,16 +2,12 @@
 
 #include <iostream>
 #include <vector>
-
-struct Vec3f
-{
-    float x, y, z;
-};
+#include "Geometry.h"
 
 struct Triangle {
-    Vec3f a, b, c;
+    vec<3> a, b, c;
     float z_mid;
-    Triangle(Vec3f a, Vec3f b, Vec3f c) : a(a), b(b), c(c) {
+    Triangle(vec<3> a, vec<3> b, vec<3> c) : a(a), b(b), c(c) {
         z_mid = (a.z + b.z + c.z) / 3;
     }
 };
@@ -28,12 +24,12 @@ struct Face {
 
 class Model
 {
-    std::vector<Vec3f> verts;
-    std::vector<Vec3f> tex_coords;
-    std::vector<Vec3f> normals;
+    std::vector<vec<3>> verts;
+    std::vector<vec<3>> tex_coords;
+    std::vector<vec<3>> normals;
     std::vector<Face> faces;
 public:
-    Model(std::string& fileName);
+    Model(const std::string& fileName);
 
     void draw_model(struct TGAImage& framebuffer, TGAImage& zbuffer, int width, int height, struct TGAColor color) const;
     void painters_algorithm_render(TGAImage& framebuffer, TGAImage& zbuffer, int width, int height, TGAColor color); // draw triangles from back to front
