@@ -9,6 +9,7 @@
 #include "ModelsNames.h"
 #include "Color.h"
 #include "Geometry.h"
+#include "rasterizer.h"
 
 namespace fs = std::filesystem;
 
@@ -28,7 +29,7 @@ std::ostream& operator<<(std::ostream& s, const Face& face) {
     return s;
 }
 
-Model::Model(std::string fileName) {
+Model::Model(std::string& fileName) {
     std::string line;
     std::string digits = "-0123456789";
 
@@ -70,9 +71,11 @@ Model::Model(std::string fileName) {
 
                     int result = sscanf(str.c_str(), "%d/%d/%d", &v, &t, &n);
 
-                    face.corners[i].v = v - 1;
-                    face.corners[i].t = t - 1;
-                    face.corners[i].n = n - 1;
+                    if (result == 3) {
+                        face.corners[i].v = v - 1;
+                        face.corners[i].t = t - 1;
+                        face.corners[i].n = n - 1;
+                    }
                     
                     i++;
                 }

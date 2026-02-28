@@ -33,7 +33,7 @@ class Model
     std::vector<Vec3f> normals;
     std::vector<Face> faces;
 public:
-    Model(std::string fileName);
+    Model(std::string& fileName);
 
     void draw_model(struct TGAImage& framebuffer, TGAImage& zbuffer, int width, int height, struct TGAColor color) const;
     void painters_algorithm_render(TGAImage& framebuffer, TGAImage& zbuffer, int width, int height, TGAColor color); // draw triangles from back to front
