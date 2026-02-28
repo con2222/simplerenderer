@@ -114,7 +114,7 @@ Model::Model(const std::string& fileName) {
     in.close();
 }
 
-void Model::draw_model(TGAImage& framebuffer, TGAImage& zbuffer, int width, int height, TGAColor color) const {
+void Model::draw_model(TGAImage& framebuffer, float* zbuffer, int width, int height, TGAColor color) const {
     for (auto& face : faces)
     {
         vec<3> v0 = verts[face.corners[0].v];
@@ -125,23 +125,30 @@ void Model::draw_model(TGAImage& framebuffer, TGAImage& zbuffer, int width, int 
         /* переводим из [-1, 1] в [0, 2], и делим ширину с высотой на 2 так как переводим 
          виртульные 2 единицы в реальные width пикселей */
 
+        v0 = persp(rot(v0));
+        v1 = persp(rot(v1));
+        v2 = persp(rot(v2));
+
         int ax = (v0.x + 1.0f) * width / 2.0f; 
         int ay = (v0.y + 1.0f) * height / 2.0f;
-        int az = (v0.z + 1.0f) * 255/2;
+        float az = v0.z;
+
         int bx = (v1.x + 1.0f) * width / 2.0f;
         int by = (v1.y + 1.0f) * height / 2.0f;
-        int bz = (v1.z + 1.0f) * 255/2;
+        float bz = v1.z;
+
         int cx = (v2.x + 1.0f) * width / 2.0f;
         int cy = (v2.y + 1.0f) * height / 2.0f;
-        int cz = (v2.z + 1.0f) * 255/2;
+        float cz = v2.z;
 
 
         triangle(ax, ay, az, bx, by, bz, cx, cy, cz, framebuffer, zbuffer);
     }
 
 
-    for (auto& p : verts)
+    for (auto& x : verts)
     {
+        vec3 p = persp(rot(x));
         int px = (p.x + 1.0f) * width / 2.0f;
         int py = (p.y + 1.0f) * height / 2.0f;
         
@@ -149,7 +156,7 @@ void Model::draw_model(TGAImage& framebuffer, TGAImage& zbuffer, int width, int 
     }
 }
 
-void Model::painters_algorithm_render(struct TGAImage &framebuffer, TGAImage& zbuffer, int width, int height, TGAColor color) {
+void Model::painters_algorithm_render(struct TGAImage &framebuffer, float* zbuffer, int width, int height, TGAColor color) {
 
     int frame_count = 0;
     std::string out_dir = "frames";
@@ -166,13 +173,6 @@ void Model::painters_algorithm_render(struct TGAImage &framebuffer, TGAImage& zb
         triangles.push_back({v0, v1, v2});
     }
 
-    //insertion sort
-    /*for (int i = 1; i < triangles.size(); i++) {
-        for (int j = i; j > 0 && triangles[j-1].z_mid > triangles[j].z_mid; j--) {
-            std::swap(triangles[j], triangles[j-1]);
-        }
-    }*/
-
     std::sort(triangles.begin(), triangles.end(), [](const Triangle& a, const Triangle& b)
         {
             return a.z_mid < b.z_mid;
@@ -182,13 +182,13 @@ void Model::painters_algorithm_render(struct TGAImage &framebuffer, TGAImage& zb
     for (auto& Trin : triangles) {
         int ax = (Trin.a.x + 1.0f) * width / 2.0f; //
         int ay = (Trin.a.y + 1.0f) * height / 2.0f;
-        int az = (Trin.a.z + 1.0f) * 255/2;
+        float az = Trin.a.z;
         int bx = (Trin.b.x + 1.0f) * width / 2.0f;
         int by = (Trin.b.y + 1.0f) * height / 2.0f;
-        int bz = (Trin.b.z + 1.0f) * 255/2;
+        float bz = Trin.b.z;
         int cx = (Trin.c.x + 1.0f) * width / 2.0f;
         int cy = (Trin.c.y + 1.0f) * height / 2.0f;
-        int cz = (Trin.c.z + 1.0f) * 255/2;
+        float cz = Trin.c.z;
 
 
 

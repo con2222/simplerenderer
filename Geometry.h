@@ -96,6 +96,18 @@ template<int n> vec<n> operator*(const double scalar, const vec<n>& v1) {
     return v1 * scalar;
 }
 
+template<int n> vec<n> operator/(const vec<n>& v1, const double scalar) {
+    vec<n> result;
+    for (int i = 0; i < n; i++) {
+        result[i] = v1[i] / scalar;
+    }
+    return result;
+}
+
+template<int n> vec<n> operator/(const double scalar, const vec<n>& v1) {
+    return v1 / scalar;
+}
+
 template<int n> std::ostream& operator<<(std::ostream& out, const vec<n>& v) {
     for (int i = 0; i < n; i++) {
         out << v[i] << " ";
@@ -283,3 +295,5 @@ matrix<R, C> operator*(const matrix<R, K>& m1, const matrix<K, C>& m2) {
 /* End Matrix Implementation */
 
 double signed_triangle_area(int x1, int y1, int x2, int y2, int x3, int y3);
+vec3 rot(vec3 v);
+vec3 persp(vec3 v);

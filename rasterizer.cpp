@@ -45,15 +45,15 @@ void line(int ax, int ay, int bx, int by, TGAImage& framebuffer, TGAColor color)
     }
 }
 
-void triangle(int ax, int ay, int az, int bx, int by, int bz, int cx, int cy, int cz, TGAImage &framebuffer, TGAImage& zbuffer) {
+void triangle(int ax, int ay, float az, int bx, int by, float bz, int cx, int cy, float cz, TGAImage &framebuffer, float* zbuffer) {
     triangle_barycentric_bounding_box(ax, ay, az, bx, by, bz, cx, cy, cz, framebuffer, zbuffer);
 }
 
-void triangle_barycentric_bounding_box(int ax, int ay, int az, int bx, int by, int bz, int cx, int cy, int cz, TGAImage& framebuffer, TGAImage& zbuffer) {
-    int bbminx = std::min(std::min(ax, bx), cx);
-    int bbminy = std::min(std::min(ay, by), cy);
-    int bbmaxx = std::max(std::max(ax, bx), cx);
-    int bbmaxy = std::max(std::max(ay, by), cy);
+void triangle_barycentric_bounding_box(int ax, int ay, float az, int bx, int by, float bz, int cx, int cy, float cz, TGAImage& framebuffer, float* zbuffer) {
+    int bbminx = std::max(0, std::min(std::min(ax, bx), cx));
+    int bbminy = std::max(0, std::min(std::min(ay, by), cy));
+    int bbmaxx = std::min(framebuffer.width() - 1, std::max(std::max(ax, bx), cx));
+    int bbmaxy = std::min(framebuffer.height() - 1, std::max(std::max(ay, by), cy));
     double total_area = signed_triangle_area(ax, ay, bx, by, cx, cy);
     if (total_area < 1) return;
 
@@ -76,10 +76,12 @@ void triangle_barycentric_bounding_box(int ax, int ay, int az, int bx, int by, i
 
             if (alpha < 0 || beta < 0 || gamma < 0) continue;
 
-            unsigned char z = static_cast<unsigned char>(alpha * az + beta * bz + gamma * cz);
+            float z = alpha * az + beta * bz + gamma * cz;
 
-            if (z > zbuffer.get(x, y).bgra[0]) {
-                zbuffer.set(x, y, {z});
+            int idx = x + y * framebuffer.width();
+
+            if (zbuffer[idx] < z) {
+                zbuffer[idx] = z;
                 framebuffer.set(x, y, {R, G, B, 255});
             }
 
