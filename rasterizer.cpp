@@ -1,11 +1,12 @@
 #include "rasterizer.h"
-
+#include "filesystem"
 #include <algorithm>
 #include <cmath>
 
 #include "Geometry.h"
 #include "color.h"
 
+namespace fs = std::filesystem;
 
 void line(int ax, int ay, int bx, int by, TGAImage& framebuffer, TGAColor color)
 {
@@ -55,6 +56,7 @@ void triangle_barycentric_bounding_box(int ax, int ay, float az, int bx, int by,
     int bbmaxx = std::min(framebuffer.width() - 1, std::max(std::max(ax, bx), cx));
     int bbmaxy = std::min(framebuffer.height() - 1, std::max(std::max(ay, by), cy));
     double total_area = signed_triangle_area(ax, ay, bx, by, cx, cy);
+
     if (total_area < 1) return;
 
     #pragma omp parallel for

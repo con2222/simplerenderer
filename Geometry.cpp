@@ -7,7 +7,7 @@ double signed_triangle_area(int x1, int y1, int x2, int y2, int x3, int y3) {
 }
 
 vec3 rot(vec3 v) {
-    constexpr double a = PI/6; // 30 degrees
+    constexpr double a = 0; // 30 degrees
     const matrix<3, 3> Ry = {{{std::cos(a), 0, std::sin(a)}, {0, 1, 0}, {-std::sin(a), 0, std::cos(a)}}};
     return Ry * v;
 }

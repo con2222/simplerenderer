@@ -115,6 +115,12 @@ Model::Model(const std::string& fileName) {
 }
 
 void Model::draw_model(TGAImage& framebuffer, float* zbuffer, int width, int height, TGAColor color) const {
+    int frame_count = 0;
+    std::string out_dir = "frames";
+    fs::create_directories(out_dir);
+    std::cout << "Current path is: " << std::filesystem::current_path() << std::endl;
+    int save_every_n = 30;
+
     for (auto& face : faces)
     {
         vec<3> v0 = verts[face.corners[0].v];
@@ -142,7 +148,15 @@ void Model::draw_model(TGAImage& framebuffer, float* zbuffer, int width, int hei
         float cz = v2.z;
 
 
+
+
         triangle(ax, ay, az, bx, by, bz, cx, cy, cz, framebuffer, zbuffer);
+
+        if (frame_count % save_every_n == 0) {
+            std::string filename = out_dir + "/frame_" + std::to_string(frame_count / save_every_n) + ".tga";
+            framebuffer.write_tga_file(filename);
+        }
+        frame_count++;
     }
 
 
