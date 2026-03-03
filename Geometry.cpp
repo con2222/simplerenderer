@@ -16,3 +16,5 @@ vec3 persp(vec3 v) {
     constexpr double c = 3.;
     return v / (1 - v.z/c);
 }
+
+

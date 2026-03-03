@@ -2,7 +2,7 @@
 #include "filesystem"
 #include <algorithm>
 #include <cmath>
-
+#include "ModelsNames.h"
 #include "Geometry.h"
 #include "color.h"
 
@@ -82,15 +82,18 @@ void triangle_barycentric_bounding_box(int ax, int ay, float az, int bx, int by,
 
             int idx = x + y * framebuffer.width();
 
-            if (zbuffer[idx] < z) {
+            /*if (zbuffer[idx] < z) {
                 zbuffer[idx] = z;
                 framebuffer.set(x, y, {R, G, B, 255});
-            }
+            }*/
 
             /* wireframe */
-            /*if (alpha < THRESHOLD || beta < THRESHOLD || gamma < THRESHOLD) {
-                framebuffer.set(x, y, {R, G, B, 255});
-            }*/
+            if (alpha < THRESHOLD || beta < THRESHOLD || gamma < THRESHOLD) {
+                if (zbuffer[idx] < z) {
+                    zbuffer[idx] = z;
+                    framebuffer.set(x, y, {R, G, B, 255});
+                }
+            }
         }
     }
 }

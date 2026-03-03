@@ -4,6 +4,12 @@
 #include <vector>
 #include "Geometry.h"
 
+struct TransformState {
+    matrix<4, 4> Viewport;
+    matrix<4, 4> Perspective;
+    matrix<4, 4> LookAt;
+};
+
 struct Triangle {
     vec<3> a, b, c;
     float z_mid;
@@ -31,6 +37,6 @@ class Model
 public:
     Model(const std::string& fileName);
 
-    void draw_model(struct TGAImage& framebuffer, float* zbuffer, int width, int height, struct TGAColor color) const;
+    void draw_model(struct TGAImage& framebuffer, float* zbuffer, int width, int height, struct TGAColor color, const TransformState& transform_state) const;
     void painters_algorithm_render(TGAImage& framebuffer, float* zbuffer, int width, int height, TGAColor color); // draw triangles from back to front
 };
