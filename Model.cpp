@@ -10,8 +10,7 @@
 #include "Color.h"
 #include "Geometry.h"
 #include "rasterizer.h"
-
-
+#include "our_gl.h"
 
 namespace fs = std::filesystem;
 
@@ -116,14 +115,17 @@ Model::Model(const std::string& fileName) {
     in.close();
 }
 
-void Model::draw_model(TGAImage& framebuffer, float* zbuffer, int width, int height, TGAColor color, const TransformState& transform_state) const {
+void Model::draw_model(TGAImage& framebuffer, TGAColor color, const IShader& shader) const {
+    int width = framebuffer.width();
+    int height = framebuffer.height();
+
     int frame_count = 0;
     std::string out_dir = "frames";
     fs::create_directories(out_dir);
     std::cout << "Current path is: " << std::filesystem::current_path() << std::endl;
     int save_every_n = 30;
 
-    matrix<4, 4> T = transform_state.Viewport * transform_state.Perspective * transform_state.LookAt; // from right to left
+    matrix<4, 4> T = Viewport * Perspective * ModelView; // from right to left
 
     for (auto& face : faces)
     {
@@ -148,8 +150,7 @@ void Model::draw_model(TGAImage& framebuffer, float* zbuffer, int width, int hei
         v2.y /= v2.w;
         v2.z /= v2.w;
 
-
-        triangle(v0.x, v0.y, v0.z, v1.x, v1.y, v1.z, v2.x, v2.y, v2.z, framebuffer, zbuffer);
+        triangle_barycentric_bounding_box(v0.x, v0.y, v0.z, v1.x, v1.y, v1.z, v2.x, v2.y, v2.z, framebuffer, shader);
 
         /*if (frame_count % save_every_n == 0) {
             std::string filename = out_dir + "/frame_" + std::to_string(frame_count / save_every_n) + ".tga";
@@ -157,71 +158,20 @@ void Model::draw_model(TGAImage& framebuffer, float* zbuffer, int width, int hei
         }*/
         frame_count++;
     }
-
-
-    for (auto& x : verts)
-    {
-        vec4 p(x.x, x.y, x.z, 1);
-        p = T * p;
-        p.x /= p.w;
-        p.y /= p.w;
-        p.z /= p.w;
-
-        
-        draw_fat_point(p.x, p.y, framebuffer, white, POINT_SIZE);
-    }
 }
 
-void Model::painters_algorithm_render(struct TGAImage &framebuffer, float* zbuffer, int width, int height, TGAColor color) {
+void Model::draw_points(TGAImage& framebuffer, TGAColor color) const {
+    matrix<4, 4> T = Viewport * Perspective * ModelView;
 
-    int frame_count = 0;
-    std::string out_dir = "frames";
-    fs::create_directories(out_dir);
-    std::cout << "Current path is: " << std::filesystem::current_path() << std::endl;
-    int save_every_n = 50;
+    for (size_t i = 0; i < verts.size(); i++) {
+        vec<4> v({verts[i].x, verts[i].y, verts[i].z, 1.0});
 
-    std::vector<Triangle> triangles;
-    for (auto& face : faces) {
-        vec<3> v0 = verts[face.corners[0].v];
-        vec<3> v1 = verts[face.corners[1].v];
-        vec<3> v2 = verts[face.corners[2].v];
+        v = T * v;
 
-        triangles.push_back({v0, v1, v2});
-    }
+        v.x /= v.w;
+        v.y /= v.w;
+        v.z /= v.w;
 
-    std::sort(triangles.begin(), triangles.end(), [](const Triangle& a, const Triangle& b)
-        {
-            return a.z_mid < b.z_mid;
-        }
-    );
-
-    for (auto& Trin : triangles) {
-        int ax = (Trin.a.x + 1.0f) * width / 2.0f;
-        int ay = (Trin.a.y + 1.0f) * height / 2.0f;
-        float az = Trin.a.z;
-        int bx = (Trin.b.x + 1.0f) * width / 2.0f;
-        int by = (Trin.b.y + 1.0f) * height / 2.0f;
-        float bz = Trin.b.z;
-        int cx = (Trin.c.x + 1.0f) * width / 2.0f;
-        int cy = (Trin.c.y + 1.0f) * height / 2.0f;
-        float cz = Trin.c.z;
-
-
-
-        triangle(ax, ay, az, bx, by, bz, cx, cy, cz, framebuffer, zbuffer);
-
-        if (frame_count % save_every_n == 0) {
-            std::string filename = out_dir + "/frame_" + std::to_string(frame_count / save_every_n) + ".tga";
-            framebuffer.write_tga_file(filename);
-        }
-        frame_count++;
-    }
-
-    for (auto& p : verts)
-    {
-        int px = (p.x + 1.0f) * width / 2.0f;
-        int py = (p.y + 1.0f) * height / 2.0f;
-
-        draw_fat_point(px, py, framebuffer, white, POINT_SIZE);
+        draw_fat_point(v.x, v.y, framebuffer, color, POINT_SIZE);
     }
 }

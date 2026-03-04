@@ -293,8 +293,3 @@ matrix<R, C> operator*(const matrix<R, K>& m1, const matrix<K, C>& m2) {
     return result;
 }
 /* End Matrix Implementation */
-
-double signed_triangle_area(int x1, int y1, int x2, int y2, int x3, int y3);
-vec3 rot(vec3 v);
-vec3 persp(vec3 v);
-void viewport(const int x, const int y, const int w, const int h);
