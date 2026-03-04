@@ -30,6 +30,8 @@ class Model
 public:
     Model(const std::string& fileName);
 
-    void draw_model(struct TGAImage& framebuffer, struct TGAColor color, const struct IShader& shader) const;
+    void draw_model(struct TGAImage& framebuffer, struct TGAColor color, struct IShader& shader) const;
     void draw_points(struct TGAImage& framebuffer, struct TGAColor color) const;
+    vec3 vert(int face, int vert) const;
+    vec3 normal(int face, int vert) const;
 };

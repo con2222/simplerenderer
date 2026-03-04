@@ -115,9 +115,7 @@ Model::Model(const std::string& fileName) {
     in.close();
 }
 
-void Model::draw_model(TGAImage& framebuffer, TGAColor color, const IShader& shader) const {
-    int width = framebuffer.width();
-    int height = framebuffer.height();
+void Model::draw_model(TGAImage& framebuffer, TGAColor color, IShader& shader) const {
 
     int frame_count = 0;
     std::string out_dir = "frames";
@@ -125,39 +123,16 @@ void Model::draw_model(TGAImage& framebuffer, TGAColor color, const IShader& sha
     std::cout << "Current path is: " << std::filesystem::current_path() << std::endl;
     int save_every_n = 30;
 
-    matrix<4, 4> T = Viewport * Perspective * ModelView; // from right to left
+    for (int i = 0; i < faces.size(); i++) {
+        vec4 clip_coords[3];
 
-    for (auto& face : faces)
-    {
+        for (int j = 0; j < 3; j++) {
+            clip_coords[j] = shader.vertex(i, j);
+        }
 
-        vec<4> v0({verts[face.corners[0].v].x, verts[face.corners[0].v].y, verts[face.corners[0].v].z, 1});
-        vec<4> v1({verts[face.corners[1].v].x, verts[face.corners[1].v].y, verts[face.corners[1].v].z, 1});
-        vec<4> v2({verts[face.corners[2].v].x, verts[face.corners[2].v].y, verts[face.corners[2].v].z, 1});
-
-        v0 = T * v0;
-        v0.x /= v0.w;
-        v0.y /= v0.w;
-        v0.z /= v0.w;
-
-
-        v1 = T * v1;
-        v1.x /= v1.w;
-        v1.y /= v1.w;
-        v1.z /= v1.w;
-
-        v2 = T * v2;
-        v2.x /= v2.w;
-        v2.y /= v2.w;
-        v2.z /= v2.w;
-
-        triangle_barycentric_bounding_box(v0.x, v0.y, v0.z, v1.x, v1.y, v1.z, v2.x, v2.y, v2.z, framebuffer, shader);
-
-        /*if (frame_count % save_every_n == 0) {
-            std::string filename = out_dir + "/frame_" + std::to_string(frame_count / save_every_n) + ".tga";
-            framebuffer.write_tga_file(filename);
-        }*/
-        frame_count++;
+        triangle_barycentric_bounding_box(clip_coords, framebuffer, shader);
     }
+
 }
 
 void Model::draw_points(TGAImage& framebuffer, TGAColor color) const {
@@ -174,4 +149,12 @@ void Model::draw_points(TGAImage& framebuffer, TGAColor color) const {
 
         draw_fat_point(v.x, v.y, framebuffer, color, POINT_SIZE);
     }
+}
+
+vec3 Model::vert(int face, int vert) const {
+    return verts[faces[face].corners[vert].v];
+}
+
+vec3 Model::normal(int face, int vert) const {
+    return normals[faces[face].corners[vert].n];
 }

@@ -48,12 +48,27 @@ void line(int ax, int ay, int bx, int by, TGAImage& framebuffer, TGAColor color)
     }
 }
 
-void triangle_barycentric_bounding_box(int ax, int ay, float az, int bx, int by, float bz, int cx, int cy, float cz, TGAImage& framebuffer, const IShader& shader) {
-    int bbminx = std::max(0, std::min(std::min(ax, bx), cx));
-    int bbminy = std::max(0, std::min(std::min(ay, by), cy));
-    int bbmaxx = std::min(framebuffer.width() - 1, std::max(std::max(ax, bx), cx));
-    int bbmaxy = std::min(framebuffer.height() - 1, std::max(std::max(ay, by), cy));
-    double total_area = signed_triangle_area(ax, ay, bx, by, cx, cy);
+void triangle_barycentric_bounding_box(vec4* clip_coords, TGAImage& framebuffer, const IShader& shader) {
+
+    //Clip Space -> NDC (Normalized Device Coordinates)
+    vec3 points[3];
+    for (int i = 0; i < 3; i++) {
+        points[i] = vec3(clip_coords[i].x / clip_coords[i].w, clip_coords[i].y / clip_coords[i].w, clip_coords[i].z / clip_coords[i].w);
+    }
+
+    //NDC -> Screen Space
+    vec3 s_pts[3];
+    for (int i = 0; i < 3; i++) {
+        vec4 translation = Viewport * vec4(points[i].x, points[i].y, points[i].z, 1.0);
+        s_pts[i] = vec3({translation.x, translation.y, translation.z});
+    }
+
+    int bbminx = std::max(0, (int)std::min({s_pts[0].x, s_pts[1].x, s_pts[2].x}));
+    int bbminy = std::max(0, (int)std::min({s_pts[0].y, s_pts[1].y, s_pts[2].y}));
+    int bbmaxx = std::min(framebuffer.width() - 1,  (int)std::max({s_pts[0].x, s_pts[1].x, s_pts[2].x}));
+    int bbmaxy = std::min(framebuffer.height() - 1, (int)std::max({s_pts[0].y, s_pts[1].y, s_pts[2].y}));
+
+    double total_area = signed_triangle_area(s_pts[0].x, s_pts[0].y, s_pts[1].x, s_pts[1].y, s_pts[2].x, s_pts[2].y);
 
     if (total_area < 1) return;
 
@@ -61,12 +76,12 @@ void triangle_barycentric_bounding_box(int ax, int ay, float az, int bx, int by,
 
     for (int x = bbminx; x <= bbmaxx; x++) {
         for (int y = bbminy; y <= bbmaxy; y++) {
-            double alpha = signed_triangle_area(x, y, bx, by, cx, cy) / total_area;
-            double beta = signed_triangle_area(x, y, cx, cy, ax, ay) / total_area;
-            double gamma = signed_triangle_area(x, y, ax, ay, bx, by) / total_area;
+            double alpha = signed_triangle_area(x, y, s_pts[1].x, s_pts[1].y, s_pts[2].x, s_pts[2].y) / total_area;
+            double beta = signed_triangle_area(x, y, s_pts[2].x, s_pts[2].y, s_pts[0].x, s_pts[0].y) / total_area;
+            double gamma = signed_triangle_area(x, y, s_pts[0].x, s_pts[0].y, s_pts[1].x, s_pts[1].y) / total_area;
 
             if (alpha < 0 || beta < 0 || gamma < 0) continue;
-            double z = alpha * az + beta * bz + gamma * cz;
+            double z = alpha * s_pts[0].z + beta * s_pts[1].z + gamma * s_pts[2].z;
             int idx = x + y * framebuffer.width();
             vec<3> bc = {static_cast<float>(alpha), static_cast<float>(beta), static_cast<float>(gamma)};
             auto [discard, color] = shader.fragment(bc);

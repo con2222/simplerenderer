@@ -62,6 +62,10 @@ template<> struct vec<4> {
         assert(i>=0 && i<4);
         return data[i];
     }
+
+    vec<3> xyz() const {
+        return vec<3>(x, y, z);
+    }
 };
 
 typedef vec<2> vec2;

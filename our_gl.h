@@ -15,5 +15,6 @@ void create_zbuffer_image(TGAImage& zbuffer_image);
 
 struct IShader {
     virtual ~IShader() = default;
+    virtual vec4 vertex(int iface, int nthvert) = 0;
     virtual std::pair<bool, TGAColor> fragment(const vec3 bar) const = 0;
 };
