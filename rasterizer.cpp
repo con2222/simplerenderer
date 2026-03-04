@@ -48,19 +48,19 @@ void line(int ax, int ay, int bx, int by, TGAImage& framebuffer, TGAColor color)
     }
 }
 
-void triangle_barycentric_bounding_box(vec4* clip_coords, TGAImage& framebuffer, const IShader& shader) {
+void triangle_barycentric_bounding_box(geom::vec4* clip_coords, TGAImage& framebuffer, const IShader& shader) {
 
     //Clip Space -> NDC (Normalized Device Coordinates)
-    vec3 points[3];
+    geom::vec3 points[3];
     for (int i = 0; i < 3; i++) {
-        points[i] = vec3(clip_coords[i].x / clip_coords[i].w, clip_coords[i].y / clip_coords[i].w, clip_coords[i].z / clip_coords[i].w);
+        points[i] = geom::vec3(clip_coords[i].x / clip_coords[i].w, clip_coords[i].y / clip_coords[i].w, clip_coords[i].z / clip_coords[i].w);
     }
 
     //NDC -> Screen Space
-    vec3 s_pts[3];
+    geom::vec3 s_pts[3];
     for (int i = 0; i < 3; i++) {
-        vec4 translation = Viewport * vec4(points[i].x, points[i].y, points[i].z, 1.0);
-        s_pts[i] = vec3({translation.x, translation.y, translation.z});
+        geom::vec4 translation = Viewport * geom::vec4(points[i].x, points[i].y, points[i].z, 1.0);
+        s_pts[i] = geom::vec3({translation.x, translation.y, translation.z});
     }
 
     int bbminx = std::max(0, (int)std::min({s_pts[0].x, s_pts[1].x, s_pts[2].x}));
@@ -83,7 +83,7 @@ void triangle_barycentric_bounding_box(vec4* clip_coords, TGAImage& framebuffer,
             if (alpha < 0 || beta < 0 || gamma < 0) continue;
             double z = alpha * s_pts[0].z + beta * s_pts[1].z + gamma * s_pts[2].z;
             int idx = x + y * framebuffer.width();
-            vec<3> bc = {static_cast<float>(alpha), static_cast<float>(beta), static_cast<float>(gamma)};
+            geom::vec<3> bc = {static_cast<float>(alpha), static_cast<float>(beta), static_cast<float>(gamma)};
             auto [discard, color] = shader.fragment(bc);
 
             if (discard) continue;

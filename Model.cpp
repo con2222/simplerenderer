@@ -2,19 +2,20 @@
 
 #include <algorithm>
 #include <filesystem>
-
+#include <random>
 #include <fstream>
 #include <string>
 #include <sstream>
 #include "ModelsNames.h"
-#include "Color.h"
+#include "color.h"
 #include "Geometry.h"
 #include "rasterizer.h"
 #include "our_gl.h"
+#include "Shaders.h"
 
 namespace fs = std::filesystem;
 
-std::ostream& operator<<(std::ostream& s, const vec<3>& v) {
+std::ostream& operator<<(std::ostream& s, const geom::vec<3>& v) {
     s << "(" << v.x << ", " << v.y << ", " << v.z << ")" << std::endl;
     return s;
 }
@@ -53,7 +54,7 @@ Model::Model(const std::string& fileName) {
                 float xt, yt, zt;
                 coords >> xt >> yt >> zt;
 
-                verts.push_back(vec<3>({xt, yt, zt}));
+                verts.push_back(geom::vec<3>({xt, yt, zt}));
             } else if (line[0] == 'f' && line[1] == ' ') {
                 size_t index = line.find_first_of(digits);
 
@@ -95,7 +96,7 @@ Model::Model(const std::string& fileName) {
                 float x, y, z;
                 coords >> x >> y >> z;
 
-                tex_coords.push_back(vec<3>({x, y, z}));
+                tex_coords.push_back(geom::vec<3>({x, y, z}));
             } else if (line.substr(0, 2) == "vn") {
                 int index = line.find_first_of(digits);
 
@@ -107,7 +108,7 @@ Model::Model(const std::string& fileName) {
                 float x, y, z;
                 coords >> x >> y >> z;
 
-                normals.push_back(vec<3>({x, y, z}));
+                normals.push_back(geom::vec<3>({x, y, z}));
             }
 
         }
@@ -124,22 +125,30 @@ void Model::draw_model(TGAImage& framebuffer, TGAColor color, IShader& shader) c
     int save_every_n = 30;
 
     for (int i = 0; i < faces.size(); i++) {
-        vec4 clip_coords[3];
+        geom::vec4 clip_coords[3];
 
         for (int j = 0; j < 3; j++) {
             clip_coords[j] = shader.vertex(i, j);
         }
 
+        /*RandomShader& rndShader = static_cast<RandomShader&>(shader);
+        if (rndShader) {
+            rndShader.color = {static_cast<uint8_t>(std::rand()%256),
+            static_cast<uint8_t>(std::rand()%256),
+            static_cast<uint8_t>(std::rand()%256),
+            255};
+        }*/
+
+
         triangle_barycentric_bounding_box(clip_coords, framebuffer, shader);
     }
-
 }
 
 void Model::draw_points(TGAImage& framebuffer, TGAColor color) const {
-    matrix<4, 4> T = Viewport * Perspective * ModelView;
+    geom::matrix<4, 4> T = Viewport * Perspective * ModelView;
 
     for (size_t i = 0; i < verts.size(); i++) {
-        vec<4> v({verts[i].x, verts[i].y, verts[i].z, 1.0});
+        geom::vec<4> v({verts[i].x, verts[i].y, verts[i].z, 1.0});
 
         v = T * v;
 
@@ -151,10 +160,10 @@ void Model::draw_points(TGAImage& framebuffer, TGAColor color) const {
     }
 }
 
-vec3 Model::vert(int face, int vert) const {
+geom::vec3 Model::vert(int face, int vert) const {
     return verts[faces[face].corners[vert].v];
 }
 
-vec3 Model::normal(int face, int vert) const {
+geom::vec3 Model::normal(int face, int vert) const {
     return normals[faces[face].corners[vert].n];
 }

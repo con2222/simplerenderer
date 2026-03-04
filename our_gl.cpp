@@ -1,7 +1,7 @@
 #include "our_gl.h"
 #include <vector>
 
-matrix<4, 4> ModelView, Viewport, Perspective;
+geom::matrix<4, 4> ModelView, Viewport, Perspective;
 std::vector<double> zbuffer;
 
 void init_viewport(const int x, const int y, const int width, const int height) {
@@ -12,12 +12,12 @@ void init_perspective(const double f) {
     Perspective = {{{1,0,0,0}, {0,1,0,0}, {0,0,1,0}, {0,0, -1/f,1}}};
 }
 
-void lookat(vec3 eye, vec3 center, vec3 up) {
-    vec<3> n = normalize((eye - center));
-    vec<3> l = normalize(cross(up, n));
-    vec<3> m = normalize(cross(n, l));
-    matrix<4, 4> Rotation = {{{l.x, l.y, l.z, 0}, {m.x, m.y, m.z, 0}, {n.x, n.y, n.z, 0}, {0, 0, 0, 1}}};
-    matrix<4, 4> Translation = {{{1, 0, 0, -eye.x}, {0, 1, 0, -eye.y}, {0, 0, 1, -eye.z}, {0, 0, 0, 1}}};
+void lookat(geom::vec3 eye, geom::vec3 center, geom::vec3 up) {
+    geom::vec<3> n = normalize((eye - center));
+    geom::vec<3> l = normalize(cross(up, n));
+    geom::vec<3> m = normalize(cross(n, l));
+    geom::matrix<4, 4> Rotation = {{{l.x, l.y, l.z, 0}, {m.x, m.y, m.z, 0}, {n.x, n.y, n.z, 0}, {0, 0, 0, 1}}};
+    geom::matrix<4, 4> Translation = {{{1, 0, 0, -eye.x}, {0, 1, 0, -eye.y}, {0, 0, 1, -eye.z}, {0, 0, 0, 1}}};
 
     ModelView = Rotation * Translation;
 }

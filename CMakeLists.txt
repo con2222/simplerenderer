@@ -24,7 +24,9 @@ find_package(OpenMP COMPONENTS CXX)
 set(SOURCES main.cpp tgaimage.cpp Model.cpp
         rasterizer.cpp
         rasterizer.h
-        our_gl.cpp)
+        our_gl.cpp
+        Shaders.cpp
+        Shaders.h)
 
 add_executable(${PROJECT_NAME} ${SOURCES})
 target_link_libraries(${PROJECT_NAME} PRIVATE $<$<BOOL:${OpenMP_CXX_FOUND}>:OpenMP::OpenMP_CXX>)
