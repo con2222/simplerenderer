@@ -24,6 +24,15 @@ struct TGAColor {
     std::uint8_t bgra[4] = {0,0,0,0};
     std::uint8_t bytespp = 4;
     std::uint8_t& operator[](const int i) { return bgra[i]; }
+
+    TGAColor operator*(const double intensity) const {
+        TGAColor newColor;
+        for (int i = 0; i < 3; i++) {
+            newColor.bgra[i] = std::min(static_cast<int>(bgra[i] * intensity), 255);
+        }
+        newColor.bgra[3] = bgra[3];
+        return newColor;
+    }
 };
 
 struct TGAImage {

@@ -5,6 +5,10 @@
 extern geom::matrix<4,4> ModelView, Viewport, Perspective;
 extern std::vector<double> zbuffer;
 
+constexpr geom::vec3 eye(0.5, 0.2, 0.7); // camera position
+constexpr geom::vec3 center(0, 0, 0);// camera direction
+constexpr geom::vec3 up(0, 1, 0);  // camera up vector
+
 void lookat(geom::vec3 eye, geom::vec3 center, geom::vec3 up);
 void init_perspective(const double f);
 void init_viewport(const int x, const int y, const int w, const int h);

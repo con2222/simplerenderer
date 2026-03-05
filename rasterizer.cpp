@@ -48,7 +48,21 @@ void line(int ax, int ay, int bx, int by, TGAImage& framebuffer, TGAColor color)
     }
 }
 
-void triangle_barycentric_bounding_box(geom::vec4* clip_coords, TGAImage& framebuffer, const IShader& shader) {
+void triangle_barycentric_bounding_box(geom::vec3* world_coords, geom::vec4* clip_coords, TGAImage& framebuffer, const IShader& shader) {
+
+    geom::vec3 AB = world_coords[1] - world_coords[0];
+    geom::vec3 AC = world_coords[2] - world_coords[0];
+    geom::vec3 n = normalize(cross(AB, AC));
+
+    geom::vec3 v = normalize(eye - world_coords[0]);
+
+    geom::vec3 l = normalize(geom::vec3(0, 1, 1));
+    const double ambient = 0.1;
+    double diffuse = std::max(0., dot(n, l));
+    geom::vec3 r = normalize(2 * n * (dot(n, l)) - l);
+    int exponent = 32;
+    double specular = std::pow(std::max(0., dot(r, v)), exponent);
+    double intensity = ambient + diffuse + specular;
 
     //Clip Space -> NDC (Normalized Device Coordinates)
     geom::vec3 points[3];
@@ -70,7 +84,7 @@ void triangle_barycentric_bounding_box(geom::vec4* clip_coords, TGAImage& frameb
 
     double total_area = signed_triangle_area(s_pts[0].x, s_pts[0].y, s_pts[1].x, s_pts[1].y, s_pts[2].x, s_pts[2].y);
 
-    if (total_area < 1) return;
+    if (std::abs(total_area) < 1) return;
 
     #pragma omp parallel for
 
@@ -84,7 +98,10 @@ void triangle_barycentric_bounding_box(geom::vec4* clip_coords, TGAImage& frameb
             double z = alpha * s_pts[0].z + beta * s_pts[1].z + gamma * s_pts[2].z;
             int idx = x + y * framebuffer.width();
             geom::vec<3> bc = {static_cast<float>(alpha), static_cast<float>(beta), static_cast<float>(gamma)};
+
             auto [discard, color] = shader.fragment(bc);
+
+            color = color * intensity;
 
             if (discard) continue;
 

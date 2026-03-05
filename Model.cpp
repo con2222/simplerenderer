@@ -116,7 +116,7 @@ Model::Model(const std::string& fileName) {
     in.close();
 }
 
-void Model::draw_model(TGAImage& framebuffer, TGAColor color, IShader& shader) const {
+void Model::draw_model(TGAImage& framebuffer, IShader& shader) const {
 
     int frame_count = 0;
     std::string out_dir = "frames";
@@ -126,9 +126,11 @@ void Model::draw_model(TGAImage& framebuffer, TGAColor color, IShader& shader) c
 
     for (int i = 0; i < faces.size(); i++) {
         geom::vec4 clip_coords[3];
+        geom::vec3 world_coords[3];
 
         for (int j = 0; j < 3; j++) {
             clip_coords[j] = shader.vertex(i, j);
+            world_coords[j] = vert(i, j);
         }
 
         /*RandomShader& rndShader = static_cast<RandomShader&>(shader);
@@ -139,8 +141,7 @@ void Model::draw_model(TGAImage& framebuffer, TGAColor color, IShader& shader) c
             255};
         }*/
 
-
-        triangle_barycentric_bounding_box(clip_coords, framebuffer, shader);
+        triangle_barycentric_bounding_box(world_coords, clip_coords, framebuffer, shader);
     }
 }
 

@@ -8,9 +8,6 @@
 int main(int argc, char** argv) {
     constexpr int width  = SIZE;
     constexpr int height = SIZE;
-    constexpr geom::vec3 eye(1, 1, 3); // camera position
-    constexpr geom::vec3 center(0, 0, 0);// camera direction
-    constexpr geom::vec3 up(0, 1, 0);  // camera up vector
 
     std::srand(std::time(0));
 
@@ -31,14 +28,15 @@ int main(int argc, char** argv) {
 
     TGAImage zbuffer_image(width, height, TGAImage::GRAYSCALE);
 
-    Model model(DIABLO);
+    Model model(HEAD);
 
-
+    geom::vec3 l = normalize(geom::vec3(0, 1, 1));
     GouraudShader shader(model, geom::vec3(1, 1, 1));
-    MySimpleShader shader1(red, model);
+    MySimpleShader shader1(gray, model);
     RandomShader a(model);
+    //PhongShading b(l, model);
 
-    model.draw_model(framebuffer, red, a);
+    model.draw_model(framebuffer, shader1);
     create_zbuffer_image(zbuffer_image);
 
     framebuffer.write_tga_file("framebuffer.tga");

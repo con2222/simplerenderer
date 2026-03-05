@@ -108,3 +108,32 @@ struct GouraudShader : public IShader {
         return {false, color};
     }
 };
+
+/*struct PhongShading : public IShader {
+    const Model &model;
+    geom::vec3 light_dir;
+    geom::vec3 eye;
+    geom::vec3 varying[3];
+    geom::vec3 tri[3];
+
+    PhongShading(geom::vec3 light, Model model) : light_dir(light), model(model) {};
+
+    geom::vec4 vertex(int face, int nthvert) override {
+        geom::vec3 v = model.vert(face, nthvert);
+        geom::vec3 normal = model.normal(face, nthvert);
+        for (int i = 0; i < 3; i++) {
+            varying[i] = normal;
+        }
+
+        geom::vec4 gl_Position = ModelView * geom::vec4{v.x, v.y, v.z, 1.};
+        tri[nthvert] = gl_Position.xyz();
+
+        return Perspective * gl_Position;
+    }
+
+    virtual std::pair<bool, TGAColor> fragment(geom::vec3 bar) const override {
+        geom::vec3 newNormal = bar.x * varying[0] + bar.y * varying[1] + bar.z * varying[2];
+
+
+    }
+};*/
