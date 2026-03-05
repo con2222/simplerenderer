@@ -28,7 +28,7 @@ int main(int argc, char** argv) {
 
     TGAImage zbuffer_image(width, height, TGAImage::GRAYSCALE);
 
-    Model model(HEAD);
+    Model model(DIABLO);
 
     geom::vec3 l = normalize(geom::vec3(-1, 1, 1));
     GouraudShader shader(model, geom::vec3(1, 1, 1));
@@ -36,7 +36,7 @@ int main(int argc, char** argv) {
     RandomShader a(model);
     PhongShading b(l, model, gray);
 
-    model.draw_model(framebuffer, b);
+    model.draw_model(framebuffer, shader);
     create_zbuffer_image(zbuffer_image);
 
     framebuffer.write_tga_file("framebuffer.tga");

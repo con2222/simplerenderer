@@ -116,6 +116,7 @@ struct PhongShading : public IShader {
     geom::vec3 varying[3];
     geom::vec3 tri[3];
     geom::matrix<4, 4> normalMatrix;
+    int exponent = 5;
 
     PhongShading(const geom::vec3& light, const Model& model, const TGAColor& color) : model(model), color(color) {
         normalMatrix = transpose(ModelView.inverse());
@@ -148,7 +149,6 @@ struct PhongShading : public IShader {
         double diffuse = std::max(0., dot(newNormal, light_dir));
 
         geom::vec3 r = normalize(2 * newNormal * dot(newNormal, light_dir) - light_dir);
-        int exponent = 32;
         double specular = std::pow(std::max(0., dot(r, v)), exponent);
 
         double intensity = ambient + diffuse + specular;
