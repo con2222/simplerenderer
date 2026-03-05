@@ -141,7 +141,7 @@ void Model::draw_model(TGAImage& framebuffer, IShader& shader) const {
             255};
         }*/
 
-        triangle_barycentric_bounding_box(world_coords, clip_coords, framebuffer, shader);
+        triangle_barycentric_bounding_box(clip_coords, framebuffer, shader);
     }
 }
 

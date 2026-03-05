@@ -16,7 +16,7 @@ int main(int argc, char** argv) {
     lookat(eye, center, up);
     init_zbuffer(width, height);
 
-    TGAColor background_color = {255, 255, 150, 255};
+    TGAColor background_color = black;
     TGAImage framebuffer(width, height, TGAImage::RGB);
 
     for (int i = 0; i < width; i++) {
@@ -30,13 +30,13 @@ int main(int argc, char** argv) {
 
     Model model(HEAD);
 
-    geom::vec3 l = normalize(geom::vec3(0, 1, 1));
+    geom::vec3 l = normalize(geom::vec3(-1, 1, 1));
     GouraudShader shader(model, geom::vec3(1, 1, 1));
     MySimpleShader shader1(gray, model);
     RandomShader a(model);
-    //PhongShading b(l, model);
+    PhongShading b(l, model, gray);
 
-    model.draw_model(framebuffer, shader1);
+    model.draw_model(framebuffer, b);
     create_zbuffer_image(zbuffer_image);
 
     framebuffer.write_tga_file("framebuffer.tga");

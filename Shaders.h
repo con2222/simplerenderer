@@ -109,21 +109,19 @@ struct GouraudShader : public IShader {
     }
 };
 
-/*struct PhongShading : public IShader {
+struct PhongShading : public IShader {
     const Model &model;
+    TGAColor color;
     geom::vec3 light_dir;
-    geom::vec3 eye;
     geom::vec3 varying[3];
     geom::vec3 tri[3];
 
-    PhongShading(geom::vec3 light, Model model) : light_dir(light), model(model) {};
+    PhongShading(geom::vec3& light, const Model& model, const TGAColor& color) : light_dir(light), model(model), color(color) {};
 
     geom::vec4 vertex(int face, int nthvert) override {
         geom::vec3 v = model.vert(face, nthvert);
         geom::vec3 normal = model.normal(face, nthvert);
-        for (int i = 0; i < 3; i++) {
-            varying[i] = normal;
-        }
+        varying[nthvert] = normal;
 
         geom::vec4 gl_Position = ModelView * geom::vec4{v.x, v.y, v.z, 1.};
         tri[nthvert] = gl_Position.xyz();
@@ -132,8 +130,18 @@ struct GouraudShader : public IShader {
     }
 
     virtual std::pair<bool, TGAColor> fragment(geom::vec3 bar) const override {
-        geom::vec3 newNormal = bar.x * varying[0] + bar.y * varying[1] + bar.z * varying[2];
+        geom::vec3 newNormal = normalize(bar.x * varying[0] + bar.y * varying[1] + bar.z * varying[2]);
+        geom::vec3 frag_pos = tri[0] * bar.x + tri[1] * bar.y + tri[2] * bar.z; // координата полигона в координатной системе камеры
 
+        geom::vec3 v = normalize(-1 * frag_pos);
+        const double ambient = 0.1;
+        double diffuse = std::max(0., dot(newNormal, light_dir));
+        geom::vec3 r = normalize(2 * newNormal * dot(newNormal, light_dir) - light_dir);
+        int exponent = 32;
+        double specular = std::pow(std::max(0., dot(r, v)), exponent);
 
+        double intensity = ambient + diffuse + specular;
+
+        return {false, color * intensity};
     }
-};*/
+};
