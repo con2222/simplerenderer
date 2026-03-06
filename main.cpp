@@ -106,7 +106,64 @@ int main(int argc, char** argv) {
     Model diablo(DIABLO);
     Model floor(FLOOR);
 
-    std::vector<double> ao_buffer = compute_AO_bruteforce(width, height, diablo, floor);
+    /* SSAO */
+    std::vector<geom::vec3> ssao_kernel;
+    ssao_kernel.reserve(128);
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<double> distribution(0, 1.0);
+
+    auto lerp = [](double a, double b, double f) {
+        return a + f * (b - a);
+    };
+
+    for (int i = 0; i < 128; i++) {
+        // 1. Create a random direction
+        // X and Y are random from -1.0 to 1.0 (covers all horizontal directions)
+        // Z is random from 0.0 to 1.0 (only positive, making it a hemisphere, not a full sphere)
+        geom::vec3 sample = geom::vec3(distribution(gen) * 2.0 - 1.0, distribution(gen) * 2.0 - 1.0, distribution(gen));
+
+        // 2. Push the point to the curved surface of the hemisphere
+        // Now the length of the vector is exactly 1.0
+        sample = normalize(sample); // on hemisphere surface
+
+        // 3. Randomize the distance from the center
+        // Multiply by a random number (0.0 to 1.0) to put the point inside the volume, not just on the shell
+        sample = sample * distribution(gen);
+
+        // 4. Calculate a scale factor based on the loop index (from 0.0 to 1.0)
+        double scale = double(i) / 128.0;
+
+        // 5. Apply an accelerating curve to the scale
+        // By squaring the scale (scale * scale), we force the values to stay smaller for longer.
+        // Then 'lerp' maps this curve to a range between 0.1 and 1.0.
+        scale = lerp(0.1, 1.0, scale * scale);
+
+        // 6. Pull the point closer to the center based on the scale
+        // This creates the cluster of points near the origin
+        sample = sample * scale;
+
+        // 7. Save the calculated point
+        ssao_kernel.push_back(sample);
+    }
+
+    std::vector<geom::vec3> ssao_noise;
+    ssao_noise.reserve(16); // 4x4 texture = 16 pixels
+
+    for (int i = 0; i < 16; i++) {
+        // 1. Create a random rotation vector
+        // X and Y are random from -1.0 to 1.0
+        // Z is exactly 0.0 because we want to rotate around the Z axis in tangent space
+        geom::vec3 noise(distribution(gen) * 2.0 - 1.0, distribution(gen) * 2.0 - 1.0, 0.0); // Important! Z is zero.
+
+
+        // 2. Save the noise vector
+        ssao_noise.push_back(noise);
+    }
+
+
+    //std::vector<double> ao_buffer = compute_AO_bruteforce(width, height, diablo, floor);
 
     for (int i = 0; i < width; i++) {
         for (int j = 0; j < height; j++) {
