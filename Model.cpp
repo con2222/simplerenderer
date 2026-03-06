@@ -38,6 +38,7 @@ Model::Model(const std::string& fileName) {
     std::string diffuse_filename = fileName.substr(0, fileName.find_last_of('.')) + "_diffuse.tga";
     std::string specular_filename = fileName.substr(0, fileName.find_last_of('.')) + "_spec.tga";
     std::string glow_filename = fileName.substr(0, fileName.find_last_of('.')) + "_glow.tga";
+    std::string normaltangentmap_filename = fileName.substr(0, fileName.find_last_of('.')) + "_nm_tangent.tga";
 
     normalmap.read_tga_file(nm_filename);
     normalmap.flip_vertically();
@@ -45,6 +46,8 @@ Model::Model(const std::string& fileName) {
     diffusemap.flip_vertically();
     specularmap.read_tga_file(specular_filename);
     specularmap.flip_vertically();
+    normaltangentmap.read_tga_file(normaltangentmap_filename);
+    normaltangentmap.flip_vertically();
     //glowmap.read_tga_file(glow_filename);
 
 
@@ -223,4 +226,18 @@ TGAColor Model::glow_from_map(geom::vec2 uv) const {
 
     TGAColor c = glowmap.get(x, y);
     return c;
+}
+
+geom::vec3 Model::normal_from_tangent_map(geom::vec2 uv) const {
+    int x = uv.x * normaltangentmap.width();
+    int y = uv.y * normaltangentmap.height();
+
+    TGAColor c = normaltangentmap.get(x, y);
+
+    geom::vec3 res;
+    res[0] = (double)c.bgra[2] / 255 * 2.0 - 1.0;
+    res[1] = (double)c.bgra[1] / 255 * 2.0 - 1.0;
+    res[2] = (double)c.bgra[0] / 255 * 2.0 - 1.0;
+
+    return normalize(res);
 }

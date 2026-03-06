@@ -1,6 +1,6 @@
 #pragma once
 
-#define SIZE 4096
+#define SIZE 2048
 #define POINT_SIZE 1
 #define THRESHOLD 2
 

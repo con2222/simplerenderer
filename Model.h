@@ -32,6 +32,7 @@ class Model
     TGAImage diffusemap;
     TGAImage specularmap;
     TGAImage glowmap;
+    TGAImage normaltangentmap;
 
 public:
     Model(const std::string& fileName);
@@ -46,4 +47,5 @@ public:
     TGAColor diffuse_from_map(geom::vec2 uv) const;
     double specular_from_map(geom::vec2 uv) const;
     TGAColor glow_from_map(geom::vec2 uv) const;
+    geom::vec3 normal_from_tangent_map(geom::vec2 uv) const;
 };
