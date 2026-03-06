@@ -126,6 +126,7 @@ int main(int argc, char** argv) {
     NormalTangentSpace floor_shader(light_dir_world, floor, ao_buffer);
     floor.draw_model(framebuffer, floor_shader);
 
+    //Post-process
     /*for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
             TGAColor color = framebuffer.get(x, y);
