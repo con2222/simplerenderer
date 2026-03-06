@@ -5,3 +5,4 @@ framebuffer_ao.tga
 shadow_buffer.tga
 frames/
 output.mp4
+*.tga
