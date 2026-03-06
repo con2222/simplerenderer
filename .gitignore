@@ -1,4 +1,7 @@
 framebuffer.tga
 zbuffer.tga
+ao_buffer.tga
+framebuffer_ao.tga
+shadow_buffer.tga
 frames/
 output.mp4
