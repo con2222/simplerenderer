@@ -35,6 +35,17 @@ struct TGAColor {
     }
 };
 
+inline TGAColor operator+(const TGAColor &c1, const TGAColor &c2) {
+    TGAColor res;
+    res.bytespp = c1.bytespp;
+
+    res.bgra[0] = std::min(255, int(c1.bgra[0]) + int(c2.bgra[0]));
+    res.bgra[1] = std::min(255, int(c1.bgra[1]) + int(c2.bgra[1]));
+    res.bgra[2] = std::min(255, int(c1.bgra[2]) + int(c2.bgra[2]));
+    res.bgra[3] = c1.bgra[3];
+    return res;
+}
+
 struct TGAImage {
     enum Format { GRAYSCALE=1, RGB=3, RGBA=4 };
     TGAImage() = default;

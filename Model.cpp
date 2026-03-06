@@ -34,6 +34,19 @@ std::ostream& operator<<(std::ostream& s, const Face& face) {
 Model::Model(const std::string& fileName) {
     std::string line;
     std::string digits = "-0123456789";
+    std::string nm_filename = fileName.substr(0, fileName.find_last_of('.')) + "_nm.tga";
+    std::string diffuse_filename = fileName.substr(0, fileName.find_last_of('.')) + "_diffuse.tga";
+    std::string specular_filename = fileName.substr(0, fileName.find_last_of('.')) + "_spec.tga";
+    std::string glow_filename = fileName.substr(0, fileName.find_last_of('.')) + "_glow.tga";
+
+    normalmap.read_tga_file(nm_filename);
+    normalmap.flip_vertically();
+    diffusemap.read_tga_file(diffuse_filename);
+    diffusemap.flip_vertically();
+    specularmap.read_tga_file(specular_filename);
+    specularmap.flip_vertically();
+    //glowmap.read_tga_file(glow_filename);
+
 
     std::ifstream in(fileName);
 
@@ -167,4 +180,47 @@ geom::vec3 Model::vert(int face, int vert) const {
 
 geom::vec3 Model::normal(int face, int vert) const {
     return normals[faces[face].corners[vert].n];
+}
+
+geom::vec2 Model::uv(int face, int vert) const {
+    geom::vec3 temp = tex_coords[faces[face].corners[vert].t];
+    geom::vec2 uv = {temp.x, temp.y};
+    return uv;
+}
+
+geom::vec3 Model::normal_from_map(geom::vec2 uv) const {
+    int x = uv.x * normalmap.width();
+    int y = uv.y * normalmap.height();
+
+    TGAColor c = normalmap.get(x, y);
+
+    geom::vec3 res;
+    res[0] = (double)c.bgra[2] / 255.0 * 2.0 - 1.0;
+    res[1] = (double)c.bgra[1] / 255.0 * 2.0 - 1.0;
+    res[2] = (double)c.bgra[0] / 255.0 * 2.0 - 1.0;
+
+    return normalize(res);
+}
+
+TGAColor Model::diffuse_from_map(geom::vec2 uv) const {
+    int x = uv.x * diffusemap.width();
+    int y = uv.y * diffusemap.height();
+    TGAColor c = diffusemap.get(x, y);
+
+    return c;
+}
+
+double Model::specular_from_map(geom::vec2 uv) const {
+    int x = uv.x * specularmap.width();
+    int y = uv.y * specularmap.height();
+
+    return specularmap.get(x, y).bgra[0] / 255.0;
+}
+
+TGAColor Model::glow_from_map(geom::vec2 uv) const {
+    int x = uv.x * glowmap.width();
+    int y = uv.y * glowmap.height();
+
+    TGAColor c = glowmap.get(x, y);
+    return c;
 }

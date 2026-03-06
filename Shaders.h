@@ -156,3 +156,62 @@ struct PhongShading : public IShader {
         return {false, color * intensity};
     }
 };
+
+struct NormalMappingShader : public IShader {
+    const Model &model;
+    geom::vec3 light_dir;
+    geom::matrix<4, 4> normalMatrix;
+    int exponent = 5;
+
+    geom::vec2 varying_uv[3];
+    geom::vec3 tri[3];
+
+    NormalMappingShader(const geom::vec3& light, const Model& model) : model(model) {
+        normalMatrix = transpose(ModelView.inverse());
+        geom::vec4 l = ModelView * geom::vec4{light.x, light.y, light.z, 0};
+        light_dir = normalize(l.xyz());
+    };
+
+    geom::vec4 vertex(int face, int nthvert) override {
+        geom::vec3 v = model.vert(face, nthvert);
+
+        varying_uv[nthvert] = model.uv(face, nthvert);
+
+        geom::vec4 gl_Position = ModelView * geom::vec4{v.x, v.y, v.z, 1.};
+        tri[nthvert] = gl_Position.xyz();
+
+        return Perspective * gl_Position;
+    }
+
+    virtual std::pair<bool, TGAColor> fragment(geom::vec3 bar) const override {
+        geom::vec2 uv = varying_uv[0] * bar.x + varying_uv[1] * bar.y + varying_uv[2] * bar.z;
+
+        geom::vec3 n = model.normal_from_map(uv);
+
+        geom::vec4 n_rotated = normalMatrix * geom::vec4{n.x, n.y, n.z, 0.};
+
+        geom::vec3 newNormal = geom::normalize(n_rotated.xyz());
+
+        geom::vec3 frag_pos = tri[0] * bar.x + tri[1] * bar.y + tri[2] * bar.z;
+        geom::vec3 v = normalize(-1.0 * frag_pos);
+
+        const double ambient = 0.25;
+
+        double diffuse = std::max(0., dot(newNormal, light_dir));
+        geom::vec3 r = normalize(2 * newNormal * dot(newNormal, light_dir) - light_dir);
+        double specular = std::pow(std::max(0., dot(r, v)), exponent);
+
+        TGAColor diff_color = model.diffuse_from_map(uv);
+        double spec_power = model.specular_from_map(uv);
+
+        diff_color = diff_color * (ambient + diffuse);
+
+        TGAColor whitecolor = white;
+
+        whitecolor = whitecolor * (specular * spec_power);
+
+        //double intensity = ambient + diffuse + specular;
+
+        return {false, diff_color + whitecolor /*+ model.glow_from_map(uv)*/};
+    }
+};

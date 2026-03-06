@@ -3,6 +3,7 @@
 #include <iostream>
 #include <vector>
 #include "Geometry.h"
+#include "tgaimage.h"
 
 struct Triangle {
     geom::vec<3> a, b, c;
@@ -27,6 +28,11 @@ class Model
     std::vector<geom::vec<3>> tex_coords;
     std::vector<geom::vec<3>> normals;
     std::vector<Face> faces;
+    TGAImage normalmap;
+    TGAImage diffusemap;
+    TGAImage specularmap;
+    TGAImage glowmap;
+
 public:
     Model(const std::string& fileName);
 
@@ -34,4 +40,10 @@ public:
     void draw_points(struct TGAImage& framebuffer, struct TGAColor color) const;
     geom::vec3 vert(int face, int vert) const;
     geom::vec3 normal(int face, int vert) const;
+    geom::vec3 normal_from_map(geom::vec2 uv) const;
+    geom::vec2 uv(int face, int vert) const;
+
+    TGAColor diffuse_from_map(geom::vec2 uv) const;
+    double specular_from_map(geom::vec2 uv) const;
+    TGAColor glow_from_map(geom::vec2 uv) const;
 };

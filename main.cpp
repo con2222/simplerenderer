@@ -25,19 +25,20 @@ int main(int argc, char** argv) {
         }
     }
 
+    geom::vec3 l = normalize(geom::vec3(-1, 1, 1));
+
 
     TGAImage zbuffer_image(width, height, TGAImage::GRAYSCALE);
 
-    Model model(DIABLO);
+    Model head(HEAD);
+    Model eyes(HEAD_EYE);
 
-    geom::vec3 l = normalize(geom::vec3(-1, 1, 1));
-    GouraudShader shader(model, geom::vec3(1, 1, 1));
-    MySimpleShader shader1(gray, model);
-    RandomShader a(model);
-    PhongShading b(l, model, gray);
+    NormalMappingShader head_shader(l, head);
+    head.draw_model(framebuffer,   head_shader);
 
-    model.draw_model(framebuffer, shader);
-    create_zbuffer_image(zbuffer_image);
+    NormalMappingShader eye_shader(l, eyes);
+    eyes.draw_model(framebuffer, eye_shader);
+    //create_zbuffer_image(zbuffer_image);
 
     framebuffer.write_tga_file("framebuffer.tga");
     return 0;
