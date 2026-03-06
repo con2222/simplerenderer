@@ -20,6 +20,7 @@ void init_zbuffer(const int width, const int height);
 void init_zbuffer(const int width, const int height);
 
 void create_zbuffer_image(TGAImage& zbuffer_image);
+void save_depth_buffer(const std::vector<double>& buffer, int width, int height, const std::string& filename);
 
 struct IShader {
     virtual ~IShader() = default;

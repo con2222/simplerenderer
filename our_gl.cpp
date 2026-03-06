@@ -55,3 +55,29 @@ void create_zbuffer_image(TGAImage& zbuffer_image) {
 
     zbuffer_image.write_tga_file("zbuffer.tga");
 }
+
+void save_depth_buffer(const std::vector<double>& buffer, int width, int height, const std::string& filename) {
+    TGAImage img(width, height, TGAImage::GRAYSCALE);
+
+    double min_z = std::numeric_limits<double>::max();
+    double max_z = -std::numeric_limits<double>::max();
+
+    for (double z : buffer) {
+        if (z != -std::numeric_limits<double>::max()) {
+            if (z < min_z) min_z = z;
+            if (z > max_z) max_z = z;
+        }
+    }
+
+    if (max_z == min_z) max_z = min_z + 1.0;
+
+    for (int i = 0; i < width * height; i++) {
+        if (buffer[i] != -std::numeric_limits<double>::max()) {
+            double normalized_z = (buffer[i] - min_z) / (max_z - min_z);
+            int color = static_cast<int>(normalized_z * 255.0);
+            img.set(i % width, i / width, TGAColor({static_cast<unsigned char>(color)}));
+        }
+    }
+
+    img.write_tga_file(filename);
+}

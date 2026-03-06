@@ -222,11 +222,14 @@ struct NormalTangentSpace : public IShader {
     geom::matrix<4, 4> normalMatrix;
     double exponent = 50.0;
 
+    std::vector<double>& ao_buffer;
+    int width;
+
     geom::vec3 varying[3];
     geom::vec2 varying_uv[3];
     geom::vec3 tri[3];
 
-    NormalTangentSpace(const geom::vec3& light, const Model& model) : model(model) {
+    NormalTangentSpace(const geom::vec3& light, const Model& model, std::vector<double>& ao, int w = 0) : model(model), ao_buffer(ao), width(w) {
         normalMatrix = transpose(ModelView.inverse());
         geom::vec4 l = ModelView * geom::vec4{light.x, light.y, light.z, 0};
         light_dir = normalize(l.xyz());
@@ -273,7 +276,22 @@ struct NormalTangentSpace : public IShader {
         geom::vec3 frag_pos = tri[0] * bar.x + tri[1] * bar.y + tri[2] * bar.z;
         geom::vec3 v = normalize(-1.0 * frag_pos);
 
-        const double ambient = 0.05;
+        double ambient = 0.05;
+        if (ao_buffer.size() > 0) {
+            geom::vec4 clip = Perspective * geom::vec4(frag_pos.x, frag_pos.y, frag_pos.z, 1.);
+            clip.x /= clip.w;
+            clip.y /= clip.w;
+            clip.z /= clip.w;
+            geom::vec4 screen = Viewport * clip;
+
+            int x = (int)screen.x;
+            int y = (int)screen.y;
+            int idx = x + y * width;
+
+            if (idx >= 0 && idx < ao_buffer.size()) {
+                ambient = ambient * ao_buffer[idx];
+            }
+        }
 
         double diffuse = std::max(0., dot(newNormal, light_dir));
         geom::vec3 r = normalize(2 * newNormal * dot(newNormal, light_dir) - light_dir);
