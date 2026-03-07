@@ -311,7 +311,7 @@ int main(int argc, char** argv) {
     init_perspective(norm(eye - center));
     init_viewport(0, 0, width, height);
 
-    geom::vec3 light_dir_world = normalize(geom::vec3(1.5, 0.5, 1.5));
+    geom::vec3 light_dir_world = normalize(geom::vec3(-1.5, 0.5, 1.5));
 
     //NormalTangentSpace floor_shader(light_dir_world, floor, ao_buffer, width);
     ToonShader floor_shader(floor, light_dir_world, blue);
@@ -340,6 +340,9 @@ int main(int argc, char** argv) {
         }
     }*/
 
+    // Define the color for our stylized shadow (Dark Purple in BGRA format)
+    TGAColor shadow_tint{150, 0, 100, 255};
+
     #pragma omp parallel for
     for (int y = 1; y < height - 1; y++) {
         for (int x = 1; x < width - 1; x++) {
@@ -366,6 +369,16 @@ int main(int argc, char** argv) {
                 framebuffer.set(x, y, black);
                 continue;
             }
+
+            // 1. Calculate how lit this pixel is (ranges from 0.4 to 1.0)
+            double light_factor = 0.4 + 0.6 * blurred_ao[x + y * width];
+
+            // 2. Calculate how much in shadow this pixel is (ranges from 0.0 to 0.6)
+            double shadow_factor = 1.0 - light_factor;
+
+            // 3. Blend the colors!
+            // Scale the base color by the light factor, and add the purple tint to the shaded areas
+            color = color * light_factor + shadow_tint * shadow_factor;
 
             color = color * (0.4 + 0.6 * blurred_ao[x + y * width]);
             framebuffer.set(x, y, color);

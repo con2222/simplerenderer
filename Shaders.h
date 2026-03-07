@@ -465,7 +465,7 @@ struct ToonShader : public IShader {
     geom::matrix<4, 4> normalMatrix;
 
     ToonShader(const Model& model, const geom::vec3& l, TGAColor c) : model(model), color(c) {
-        normalMatrix = ModelView.inverse();
+        normalMatrix = transpose(ModelView.inverse());
         light_dir = (ModelView * geom::vec4{l.x, l.y, l.z, 0.}).xyz();
     }
 
