@@ -98,6 +98,33 @@ std::vector<double> compute_AO_bruteforce(int width, int height, Model& model, M
     return ao_buffer;
 }
 
+void visualize_ssao_kernel(const std::vector<geom::vec3>& kernel) {
+    int size = 512;
+    TGAImage viz(size, size, TGAImage::RGB);
+
+    // Рисуем оси для наглядности
+    for(int i=0; i<size; i++) {
+        viz.set(i, size/2, TGAColor{100, 100, 100, 255}); // Ось X
+        viz.set(size/2, i, TGAColor{100, 100, 100, 255}); // Ось Z (высота)
+    }
+
+    for (const auto& sample : kernel) {
+        // Переводим координаты из [-1, 1] в пиксели [0, 512]
+        // Мы смотрим на полусферу "сбоку", поэтому берем X и Z
+        int x = (sample.x + 1.0) * (size / 2);
+        int z = (sample.z + 0.0) * (size / 1.0); // Z у нас от 0 до 1, поэтому смещаем иначе
+
+        // Рисуем точку (жирную, чтобы было видно)
+        for(int dx=-2; dx<=2; dx++) {
+            for(int dz=-2; dz<=2; dz++) {
+                if (x+dx >= 0 && x+dx < size && (size-z)+dz >= 0 && size-z+dz < size)
+                    viz.set(x + dx, (size - z) + dz, TGAColor{255, 255, 255, 255});
+            }
+        }
+    }
+    viz.write_tga_file("kernel_viz.tga");
+}
+
 std::vector<double> compute_SSAO(int width, int height, Model& model, Model& floor) {
 
     std::vector<geom::vec3> ssao_kernel;
@@ -116,6 +143,8 @@ std::vector<double> compute_SSAO(int width, int height, Model& model, Model& flo
         sample = sample * scale;
         ssao_kernel.push_back(sample);
     }
+
+    visualize_ssao_kernel(ssao_kernel);
 
     std::vector<geom::vec3> ssao_noise;
     ssao_noise.reserve(16);
@@ -138,8 +167,8 @@ std::vector<double> compute_SSAO(int width, int height, Model& model, Model& flo
     model.draw_model(normal_fb, geom_shader_diablo);
 
     std::vector<double> ao_buffer(width * height, 0.0);
-    double radius = 0.2;
-    geom::matrix<4, 4> M_inv = (Viewport * Perspective).inverse();
+    double radius = 1.5;
+    geom::matrix<4, 4> M_inv = (Viewport * Perspective).inverse(); // from 2D to 3D
 
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
@@ -152,7 +181,7 @@ std::vector<double> compute_SSAO(int width, int height, Model& model, Model& flo
             }
 
             geom::vec4 screen_coord(x, y, z_screen, 1.0);
-            geom::vec4 view_coord = M_inv * screen_coord;
+            geom::vec4 view_coord = M_inv * screen_coord; // frag_pos to 3D
             geom::vec3 frag_pos(
                 view_coord.x / view_coord.w,
                 view_coord.y / view_coord.w,
@@ -160,11 +189,13 @@ std::vector<double> compute_SSAO(int width, int height, Model& model, Model& flo
             );
 
             TGAColor c = normal_fb.get(x, y);
+
             geom::vec3 normal(
                 c.bgra[2] / 127.5 - 1.0,
                 c.bgra[1] / 127.5 - 1.0,
                 c.bgra[0] / 127.5 - 1.0
             );
+
             normal = geom::normalize(normal);
 
             if (norm(normal) < 0.1) {
