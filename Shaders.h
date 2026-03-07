@@ -356,6 +356,7 @@ struct ShadowShader : public IShader {
         geom::vec3 normal = model.normal(face, nthvert);
 
         geom::vec4 n = normalMatrix * geom::vec4{normal.x, normal.y, normal.z, 0.};
+
         varying[nthvert] = normalize(n.xyz());
 
         varying_uv[nthvert] = model.uv(face, nthvert);
@@ -456,4 +457,42 @@ struct GeometryShader : IShader {
     }
 };
 
+struct ToonShader : IShader {
+    const Model& model;
+    const geom::vec3& light_direction;
+    
+    geom::vec2 varying_uv[3];
 
+
+    geom::vec3 varying_normal;
+    geom::matrix<4, 4> normalMatrix;
+
+    ToonShader(const Model& model, geom::vec3 l) : model(model), light_direction(l) {
+        normalMatrix = Modelview.inverse();
+    }
+
+    virtual geom::vec4 vertex(int face, int nthvert) override {
+        geom::vec4 n = normalMatrix * geom::vec4(model.normal(face, nthvert).x, model.normal(face, nthvert).y, 
+            model.normal(face, nthvert).z, 0.);
+
+        geom::vec4 gl_Position = (ModelView * geom::vec4(model.vert(face, nthvert).x, model.vert(face, nthvert).y 
+            model.vert(face, nthvert).z 1.))
+
+        tri[nthvert] = gl_Position.xyz();
+
+        varying_normal[nthvert] = normalize(n.xyz());
+        varying_uv[nthvert] = model.uv(face, nthvert);
+
+        return Perspective * gl_Position;
+    }
+
+    virtual std::pair<bool, TGAColor> fragment(geom::vec3& bar) const override {
+
+
+        return {false, geom::vec3()};
+    }
+
+
+    geom::vec3 tri[3];
+
+}
