@@ -85,13 +85,14 @@ void triangle_barycentric_bounding_box(geom::vec4* clip_coords, TGAImage& frameb
             int idx = x + y * framebuffer.width();
             geom::vec<3> bc = {static_cast<float>(alpha), static_cast<float>(beta), static_cast<float>(gamma)};
 
-            auto [discard, color] = shader.fragment(bc);
-
-            if (discard) continue;
 
             if (zbuffer[idx] < z) {
-                zbuffer[idx] = z;
-                framebuffer.set(x, y, color);
+                auto [discard, color] = shader.fragment(bc);
+
+                if (!discard) {
+                    zbuffer[idx] = z;
+                    framebuffer.set(x, y, color);
+                }
             }
         }
     }

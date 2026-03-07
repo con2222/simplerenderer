@@ -98,6 +98,91 @@ std::vector<double> compute_AO_bruteforce(int width, int height, Model& model, M
     return ao_buffer;
 }
 
+std::vector<double> compute_SSAO(
+    int width, int height, const std::vector<geom::vec3>& ssao_kernel,
+    const std::vector<geom::vec3>& ssao_noise,
+    const std::vector<geom::vec3>& position_buffer,
+    const std::vector<geom::vec3>& normal_buffer
+    )
+{
+    // Buffer to store the final occlusion factor for each pixel
+    std::vector<double> ao_buffer(width * height, 0.0);
+
+    // The radius of the hemisphere. Controls how far the algorithm searches for occluders.
+    double radius = 0.5;
+
+    // Iterate over every pixel on the screen
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            int idx = x + y * width;
+
+            // Get the 3D position and normal of the current pixel from the G-Buffer
+            geom::vec3 frag_pos = position_buffer[idx];
+            geom::vec3 normal = normal_buffer[idx];
+
+            // If the normal is very small, it means there is no geometry here (background).
+            // Skip SSAO calculation and leave it fully lit (1.0).
+            if (norm(normal) < 0.1) {
+                ao_buffer[idx] = 1.0; // 1.0 = fully lit / no occlusion
+                continue;
+            }
+
+            // Tile the 4x4 noise texture across the entire screen
+            int noise_x = x % 4;
+            int noise_y = y % 4;
+            geom::vec3 random_vec = ssao_noise[noise_x + noise_y * 4];
+
+            // Build the TBN (Tangent, Bitangent, Normal) matrix using Gram-Schmidt process.
+            // This matrix will be used to align the hemisphere with the surface normal
+            // and rotate it randomly based on the noise vector.
+            geom::vec3 t = geom::normalize(random_vec - normal * dot(random_vec, normal));
+            geom::vec3 b = cross(normal, t);
+            geom::matrix<3, 3> TBN = {{{t.x, b.x, normal.x}, {t.y, b.y, normal.y}, {t.z, b.z, normal.z}}};
+
+            double occlusion = 0.0;
+
+            // Cast 128 sample points inside the hemisphere
+            for (int i = 0; i < 128; i++) {
+                // Orient the sample vector to the surface normal and scale it by the radius
+                geom::vec3 ssao_vec = TBN * ssao_kernel[i];
+                geom::vec3 sample_pos = frag_pos + ssao_vec * radius;
+
+                // Project the 3D sample point to 2D screen space to find which pixel it falls on
+                geom::vec4 clip = Perspective * geom::vec4{sample_pos.x, sample_pos.y, sample_pos.z, 1.0};
+                clip.x /= clip.w;
+                clip.y /= clip.w;
+                clip.z /= clip.w;
+
+                // Transform Normalized Device Coordinates (NDC) to screen pixels
+                geom::vec4 screen = Viewport * clip;
+
+                int sx = (int)screen.x;
+                int sy = (int)screen.y;
+
+                // Ensure the projected sample is within the screen bounds
+                if (sx < 0 || sx >= width || sy < 0 || sy >= height) continue;
+
+                // Fetch the actual geometry depth at the projected screen coordinate
+                const double z_pos = position_buffer[sx + sy * width].z;
+
+                // Range check: Only occlude if the occluding geometry is close to the fragment.
+                // Depth check: Check if the sample point is behind the actual geometry.
+                if (sample_pos.z < z_pos - 0.01 && std::abs(frag_pos.z - z_pos) < radius) {
+                    occlusion += 1.0;
+                }
+            }
+
+            // Calculate the final ambient occlusion factor.
+            // We divide by 128.0 to average the occlusion, then subtract from 1.0
+            // to invert it (so 1.0 means fully lit, and 0.0 means fully shadowed).
+            occlusion = 1.0 - (occlusion / 128.0);
+            ao_buffer[idx] = occlusion;
+        }
+    }
+
+    return ao_buffer;
+}
+
 int main(int argc, char** argv) {
     constexpr int width  = SIZE;
     constexpr int height = SIZE;
@@ -176,15 +261,41 @@ int main(int argc, char** argv) {
     init_perspective(norm(eye - center));
     init_viewport(0, 0, width, height);
 
-    geom::vec3 light_dir_world = normalize(geom::vec3(1.5, 0.5, 1.5));
-    NormalTangentSpace diablo_shader(light_dir_world, diablo, ao_buffer);
-    diablo.draw_model(framebuffer, diablo_shader);
+    position_buffer.assign(width * height, geom::vec3(0, 0, 0));
+    normal_buffer.assign(width * height, geom::vec3(0, 0, 0));
 
-    NormalTangentSpace floor_shader(light_dir_world, floor, ao_buffer);
+    TGAImage dummy_fb(width, height, TGAImage::RGB);
+
+    GeometryShader geom_shader_floor(floor, width, height);
+    floor.draw_model(dummy_fb, geom_shader_floor);
+
+    GeometryShader geom_shader_diablo(diablo, width, height);
+    diablo.draw_model(dummy_fb, geom_shader_diablo);
+
+    std::vector<double> ao_buffer = compute_SSAO(width, height, ssao_kernel, ssao_noise, position_buffer, normal_buffer);
+
+    TGAImage ao_image(width, height, TGAImage::GRAYSCALE);
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            int color_val = std::max(0, std::min(255, (int)(ao_buffer[x + y * width] * 255.0)));
+            ao_image.set(x, y, TGAColor({static_cast<unsigned char>(color_val)}));
+        }
+    }
+    ao_image.write_tga_file("ssao_raw.tga");
+
+    init_zbuffer(width, height);
+
+    geom::vec3 light_dir_world = normalize(geom::vec3(1.5, 0.5, 1.5));
+
+    NormalTangentSpace floor_shader(light_dir_world, floor, ao_buffer, width);
     floor.draw_model(framebuffer, floor_shader);
 
+
+    NormalTangentSpace diablo_shader(light_dir_world, diablo, ao_buffer, width);
+    diablo.draw_model(framebuffer, diablo_shader);
+
     //Post-process
-    /*for (int y = 0; y < height; y++) {
+    for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
             TGAColor color = framebuffer.get(x, y);
 
@@ -192,7 +303,7 @@ int main(int argc, char** argv) {
             color = color *(0.4 + 0.6 * ao_buffer[x + y * width]);
             framebuffer.set(x, y, color);
         }
-    }*/
+    }
 
     TGAImage zbuffer_image(width, height, TGAImage::GRAYSCALE);
     create_zbuffer_image(zbuffer_image);

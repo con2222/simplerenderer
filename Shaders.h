@@ -276,7 +276,7 @@ struct NormalTangentSpace : public IShader {
         geom::vec3 frag_pos = tri[0] * bar.x + tri[1] * bar.y + tri[2] * bar.z;
         geom::vec3 v = normalize(-1.0 * frag_pos);
 
-        double ambient = 0.05;
+        double ambient = 0.25;
         if (ao_buffer.size() > 0) {
             geom::vec4 clip = Perspective * geom::vec4(frag_pos.x, frag_pos.y, frag_pos.z, 1.);
             clip.x /= clip.w;
@@ -289,7 +289,7 @@ struct NormalTangentSpace : public IShader {
             int idx = x + y * width;
 
             if (idx >= 0 && idx < ao_buffer.size()) {
-                ambient = ambient * ao_buffer[idx];
+                //ambient = ambient * ao_buffer[idx];
             }
         }
 
@@ -416,5 +416,61 @@ struct ShadowShader : public IShader {
         whitecolor = whitecolor * (specular * spec_power * shadow);
 
         return {false, diff_color + whitecolor};
+    }
+};
+
+struct GeometryShader : IShader {
+    const Model& model;
+    int width;
+    int height;
+
+    geom::vec3 varying_pos[3];
+    geom::vec3 varying_normal[3];
+    geom::matrix<4, 4> normalMatrix;
+
+    GeometryShader(const Model& model, int w, int h) : model{model}, width{w}, height(h) {
+        normalMatrix = transpose(ModelView.inverse());
+    }
+
+    virtual geom::vec4 vertex(int face, int nthvert) override {
+        geom::vec3 v = model.vert(face, nthvert);
+        geom::vec3 n = model.normal(face, nthvert);
+
+
+        geom::vec4 gl_Position = ModelView * geom::vec4{v.x, v.y, v.z, 1.};
+        varying_pos[nthvert] = gl_Position.xyz();
+
+
+        geom::vec4 normal = normalMatrix * geom::vec4{n.x, n.y, n.z, 0.};
+        varying_normal[nthvert] = normal.xyz();
+
+        return Perspective * gl_Position;
+    }
+
+    virtual std::pair<bool, TGAColor> fragment(geom::vec3 bar) const override {
+        geom::vec3 frag_p = varying_pos[0] * bar.x + varying_pos[1] * bar.y + varying_pos[2] * bar.z;
+        geom::vec3 normal = varying_normal[0] * bar.x + varying_normal[1] * bar.y + varying_normal[2] * bar.z;
+        normal = geom::normalize(normal);
+
+        // View space -> Clip space
+        geom::vec4 clip = Perspective * geom::vec4{frag_p.x, frag_p.y, frag_p.z, 1.};
+
+        //Clip space -> NDC
+        clip.x /= clip.w;
+        clip.y /= clip.w;
+        clip.z /= clip.w;
+
+        //NDC -> Screen Space
+        geom::vec4 screen = Viewport * clip;
+
+        int x = (int)screen.x;
+        int y = (int)screen.y;
+
+        if (x >= 0 && x < width && y >= 0 && y < height) {
+            int idx = x + y * width;
+            position_buffer[idx] = frag_p;
+            normal_buffer[idx] = normal;
+        }
+        return {false, TGAColor({0, 0, 0, 0})};
     }
 };

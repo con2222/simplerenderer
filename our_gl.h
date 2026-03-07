@@ -4,6 +4,8 @@
 
 extern geom::matrix<4,4> ModelView, Viewport, Perspective;
 extern std::vector<double> zbuffer;
+extern std::vector<geom::vec3> position_buffer;
+extern std::vector<geom::vec3> normal_buffer;
 
 /*constexpr geom::vec3 eye(0.5, 0.2, 1.2); // camera position
 constexpr geom::vec3 center(0., 0., 0.);// camera direction

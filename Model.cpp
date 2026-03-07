@@ -192,8 +192,8 @@ geom::vec2 Model::uv(int face, int vert) const {
 }
 
 geom::vec3 Model::normal_from_map(geom::vec2 uv) const {
-    int x = uv.x * normalmap.width();
-    int y = uv.y * normalmap.height();
+    int x = std::max(0, std::min((int)(uv.x * normalmap.width()),  normalmap.width() - 1));
+    int y = std::max(0, std::min((int)(uv.y * normalmap.height()), normalmap.height() - 1));
 
     TGAColor c = normalmap.get(x, y);
 
@@ -206,31 +206,31 @@ geom::vec3 Model::normal_from_map(geom::vec2 uv) const {
 }
 
 TGAColor Model::diffuse_from_map(geom::vec2 uv) const {
-    int x = uv.x * diffusemap.width();
-    int y = uv.y * diffusemap.height();
+    int x = std::max(0, std::min((int)(uv.x * normalmap.width()),  normalmap.width() - 1));
+    int y = std::max(0, std::min((int)(uv.y * normalmap.height()), normalmap.height() - 1));
     TGAColor c = diffusemap.get(x, y);
 
     return c;
 }
 
 double Model::specular_from_map(geom::vec2 uv) const {
-    int x = uv.x * specularmap.width();
-    int y = uv.y * specularmap.height();
+    int x = std::max(0, std::min((int)(uv.x * normalmap.width()),  normalmap.width() - 1));
+    int y = std::max(0, std::min((int)(uv.y * normalmap.height()), normalmap.height() - 1));
 
     return specularmap.get(x, y).bgra[0] / 255.0;
 }
 
 TGAColor Model::glow_from_map(geom::vec2 uv) const {
-    int x = uv.x * glowmap.width();
-    int y = uv.y * glowmap.height();
+    int x = std::max(0, std::min((int)(uv.x * normalmap.width()),  normalmap.width() - 1));
+    int y = std::max(0, std::min((int)(uv.y * normalmap.height()), normalmap.height() - 1));
 
     TGAColor c = glowmap.get(x, y);
     return c;
 }
 
 geom::vec3 Model::normal_from_tangent_map(geom::vec2 uv) const {
-    int x = uv.x * normaltangentmap.width();
-    int y = uv.y * normaltangentmap.height();
+    int x = std::max(0, std::min((int)(uv.x * normalmap.width()),  normalmap.width() - 1));
+    int y = std::max(0, std::min((int)(uv.y * normalmap.height()), normalmap.height() - 1));
 
     TGAColor c = normaltangentmap.get(x, y);
 
