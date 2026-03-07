@@ -260,18 +260,50 @@ std::vector<double> compute_SSAO(int width, int height, Model& model, Model& flo
 
 int main(int argc, char** argv) {
     constexpr int width  = SIZE;
-
     constexpr int height = SIZE;
+
+    geom::matrix<3, 3> sobel_x = geom::matrix<3, 3>({{{-1, 0, 1}, {-2, 0, 2}, {-1, 0, 1}}});
+    geom::matrix<3, 3> sobel_y = geom::matrix<3, 3>({{{-1, -2, -1}, {0, 0, 0}, {1, 2, 1}}});
 
     TGAImage framebuffer(width, height, TGAImage::RGB);
     Model diablo(DIABLO);
     Model floor(FLOOR);
 
-    std::vector<double> ao_buffer = compute_AO_bruteforce(width, height, diablo, floor);
+    //std::vector<double> ao_buffer = compute_AO_bruteforce(width, height, diablo, floor);
+    std::vector<double> ao_buffer = compute_SSAO(width, height, diablo, floor);
+
+
+    /* Blur pass */
+    std::vector<double> blurred_ao(width * height, 0.0);
+
+    #pragma omp parallel for
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            double result = 0.0;
+            int count = 0; // Count actual neighbors (important for screen edges)
+
+            // Loop through a 4x4 square around the current pixel
+            for (int dy = -2; dy < 2; dy++) {
+                for (int dx = -2; dx < 2; dx++) {
+                    int nx = x + dx;
+                    int ny = y + dy;
+
+                    // Protect against out-of-bounds screen coordinates
+                    if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                        result += ao_buffer[nx + ny * width];
+                        count++;
+                    }
+                }
+            }
+            // Write the averaged value to the NEW buffer
+            blurred_ao[x + y * width] = result / (double)count;
+        }
+    }
+
 
     for (int i = 0; i < width; i++) {
         for (int j = 0; j < height; j++) {
-            framebuffer.set(i, j, black);
+            framebuffer.set(i, j, white);
         }
     }
     init_zbuffer(width, height);
@@ -289,13 +321,53 @@ int main(int argc, char** argv) {
     //NormalTangentSpace diablo_shader(light_dir_world, diablo, ao_buffer, width);
     diablo.draw_model(framebuffer, diablo_shader);
 
-    //Post-process
+    /* //Post-process
     #pragma omp parallel for
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
             TGAColor color = framebuffer.get(x, y);
 
+            double frag_z = zbuffer[x + y * width];
+            if (x + 1 >= width || y + 1 >= height) continue;
+            double frag_next_xz = zbuffer[x + 1 + y * width];
+            double frag_next_yz = zbuffer[x + (y + 1) * width];
+            double abs_diff_x = std::abs(frag_z - frag_next_xz);
+            double abs_diff_y = std::abs(frag_z - frag_next_yz);
+
+            if (abs_diff_x > 0.01 || abs_diff_y > 0.01) {framebuffer.set(x, y, black); continue;}
             color = color * (0.4 + 0.6 * ao_buffer[x + y * width]);
+            framebuffer.set(x, y, color);
+        }
+    }*/
+
+    #pragma omp parallel for
+    for (int y = 1; y < height - 1; y++) {
+        for (int x = 1; x < width - 1; x++) {
+            TGAColor color = framebuffer.get(x, y);
+
+            double tl = zbuffer[(x - 1) + (y - 1) * width]; // Top-Left
+            double tc = zbuffer[x       + (y - 1) * width]; // Top-Center
+            double tr = zbuffer[(x + 1) + (y - 1) * width]; // Top-Right
+
+            double ml = zbuffer[(x - 1) + y * width];       // Mid-Left
+            double mc = zbuffer[x       + y * width];       // Mid-Center
+            double mr = zbuffer[(x + 1) + y * width];       // Mid-Right
+
+            double bl = zbuffer[(x - 1) + (y + 1) * width]; // Bottom-Left
+            double bc = zbuffer[x       + (y + 1) * width]; // Bottom-Center
+            double br = zbuffer[(x + 1) + (y + 1) * width]; // Bottom-\
+
+            double gx = (tr - tl) + 2.0 * (mr - ml) + (br - bl);
+            double gy = (bl - tl) + 2.0 * (bc - tc) + (br - tr);
+            double edge = std::sqrt(gx * gx + gy * gy);
+
+
+            if (edge > 0.05) {
+                framebuffer.set(x, y, black);
+                continue;
+            }
+
+            color = color * (0.4 + 0.6 * blurred_ao[x + y * width]);
             framebuffer.set(x, y, color);
         }
     }
