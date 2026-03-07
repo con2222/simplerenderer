@@ -421,14 +421,10 @@ struct ShadowShader : public IShader {
 
 struct GeometryShader : IShader {
     const Model& model;
-    int width;
-    int height;
-
-    geom::vec3 varying_pos[3];
     geom::vec3 varying_normal[3];
     geom::matrix<4, 4> normalMatrix;
 
-    GeometryShader(const Model& model, int w, int h) : model{model}, width{w}, height(h) {
+    GeometryShader(const Model& model) : model{model} {
         normalMatrix = transpose(ModelView.inverse());
     }
 
@@ -436,41 +432,24 @@ struct GeometryShader : IShader {
         geom::vec3 v = model.vert(face, nthvert);
         geom::vec3 n = model.normal(face, nthvert);
 
-
-        geom::vec4 gl_Position = ModelView * geom::vec4{v.x, v.y, v.z, 1.};
-        varying_pos[nthvert] = gl_Position.xyz();
-
-
         geom::vec4 normal = normalMatrix * geom::vec4{n.x, n.y, n.z, 0.};
         varying_normal[nthvert] = normal.xyz();
 
-        return Perspective * gl_Position;
+        return Perspective * ModelView * geom::vec4{v.x, v.y, v.z, 1.};
     }
 
     virtual std::pair<bool, TGAColor> fragment(geom::vec3 bar) const override {
-        geom::vec3 frag_p = varying_pos[0] * bar.x + varying_pos[1] * bar.y + varying_pos[2] * bar.z;
         geom::vec3 normal = varying_normal[0] * bar.x + varying_normal[1] * bar.y + varying_normal[2] * bar.z;
         normal = geom::normalize(normal);
 
-        // View space -> Clip space
-        geom::vec4 clip = Perspective * geom::vec4{frag_p.x, frag_p.y, frag_p.z, 1.};
+        TGAColor color;
+        color.bgra[2] = std::max(0, std::min(255, (int)((normal.x + 1.0) * 127.5)));
+        color.bgra[1] = std::max(0, std::min(255, (int)((normal.y + 1.0) * 127.5)));
+        color.bgra[0] = std::max(0, std::min(255, (int)((normal.z + 1.0) * 127.5)));
+        color.bgra[3] = 255;
 
-        //Clip space -> NDC
-        clip.x /= clip.w;
-        clip.y /= clip.w;
-        clip.z /= clip.w;
-
-        //NDC -> Screen Space
-        geom::vec4 screen = Viewport * clip;
-
-        int x = (int)screen.x;
-        int y = (int)screen.y;
-
-        if (x >= 0 && x < width && y >= 0 && y < height) {
-            int idx = x + y * width;
-            position_buffer[idx] = frag_p;
-            normal_buffer[idx] = normal;
-        }
-        return {false, TGAColor({0, 0, 0, 0})};
+        return {false, color};
     }
 };
+
+

@@ -4,9 +4,6 @@
 geom::matrix<4, 4> ModelView, Viewport, Perspective;
 std::vector<double> zbuffer;
 
-std::vector<geom::vec3> position_buffer;
-std::vector<geom::vec3> normal_buffer;
-
 void init_viewport(const int x, const int y, const int width, const int height) {
     Viewport = {{{width/2., 0, 0, x + width/2.}, {0, height/2., 0, y + height/2.}, {0, 0, 1, 0}, {0, 0, 0, 1}}};
 }

@@ -98,181 +98,120 @@ std::vector<double> compute_AO_bruteforce(int width, int height, Model& model, M
     return ao_buffer;
 }
 
-std::vector<double> compute_SSAO(
-    int width, int height, const std::vector<geom::vec3>& ssao_kernel,
-    const std::vector<geom::vec3>& ssao_noise,
-    const std::vector<geom::vec3>& position_buffer,
-    const std::vector<geom::vec3>& normal_buffer
-    )
-{
-    // Buffer to store the final occlusion factor for each pixel
+std::vector<double> compute_SSAO(int width, int height, Model& model, Model& floor) {
+
+    std::vector<geom::vec3> ssao_kernel;
+    ssao_kernel.reserve(128);
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<double> distribution(0, 1.0);
+    auto lerp = [](double a, double b, double f) { return a + f * (b - a); };
+
+    for (int i = 0; i < 128; i++) {
+        geom::vec3 sample(distribution(gen) * 2.0 - 1.0, distribution(gen) * 2.0 - 1.0, distribution(gen));
+        sample = normalize(sample);
+        sample = sample * distribution(gen);
+        double scale = double(i) / 128.0;
+        scale = lerp(0.1, 1.0, scale * scale);
+        sample = sample * scale;
+        ssao_kernel.push_back(sample);
+    }
+
+    std::vector<geom::vec3> ssao_noise;
+    ssao_noise.reserve(16);
+    for (int i = 0; i < 16; i++) {
+        geom::vec3 noise(distribution(gen) * 2.0 - 1.0, distribution(gen) * 2.0 - 1.0, 0.0);
+        ssao_noise.push_back(noise);
+    }
+
+    lookat(eye, center, up);
+    init_perspective(norm(eye - center));
+    init_viewport(0, 0, width, height);
+    init_zbuffer(width, height);
+
+    TGAImage normal_fb(width, height, TGAImage::RGB);
+
+    GeometryShader geom_shader_floor(floor);
+    floor.draw_model(normal_fb, geom_shader_floor);
+
+    GeometryShader geom_shader_diablo(model);
+    model.draw_model(normal_fb, geom_shader_diablo);
+
     std::vector<double> ao_buffer(width * height, 0.0);
+    double radius = 0.2;
+    geom::matrix<4, 4> M_inv = (Viewport * Perspective).inverse();
 
-    // The radius of the hemisphere. Controls how far the algorithm searches for occluders.
-    double radius = 0.5;
-
-    // Iterate over every pixel on the screen
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
             int idx = x + y * width;
+            double z_screen = zbuffer[idx];
 
-            // Get the 3D position and normal of the current pixel from the G-Buffer
-            geom::vec3 frag_pos = position_buffer[idx];
-            geom::vec3 normal = normal_buffer[idx];
-
-            // If the normal is very small, it means there is no geometry here (background).
-            // Skip SSAO calculation and leave it fully lit (1.0).
-            if (norm(normal) < 0.1) {
-                ao_buffer[idx] = 1.0; // 1.0 = fully lit / no occlusion
+            if (z_screen == -std::numeric_limits<double>::max()) {
+                ao_buffer[idx] = 1.0;
                 continue;
             }
 
-            // Tile the 4x4 noise texture across the entire screen
+            geom::vec4 screen_coord(x, y, z_screen, 1.0);
+            geom::vec4 view_coord = M_inv * screen_coord;
+            geom::vec3 frag_pos(
+                view_coord.x / view_coord.w,
+                view_coord.y / view_coord.w,
+                view_coord.z / view_coord.w
+            );
+
+            TGAColor c = normal_fb.get(x, y);
+            geom::vec3 normal(
+                c.bgra[2] / 127.5 - 1.0,
+                c.bgra[1] / 127.5 - 1.0,
+                c.bgra[0] / 127.5 - 1.0
+            );
+            normal = geom::normalize(normal);
+
+            if (norm(normal) < 0.1) {
+                ao_buffer[idx] = 1.0;
+                continue;
+            }
+
             int noise_x = x % 4;
             int noise_y = y % 4;
             geom::vec3 random_vec = ssao_noise[noise_x + noise_y * 4];
 
-            // Build the TBN (Tangent, Bitangent, Normal) matrix using Gram-Schmidt process.
-            // This matrix will be used to align the hemisphere with the surface normal
-            // and rotate it randomly based on the noise vector.
             geom::vec3 t = geom::normalize(random_vec - normal * dot(random_vec, normal));
             geom::vec3 b = cross(normal, t);
             geom::matrix<3, 3> TBN = {{{t.x, b.x, normal.x}, {t.y, b.y, normal.y}, {t.z, b.z, normal.z}}};
 
             double occlusion = 0.0;
 
-            // Cast 128 sample points inside the hemisphere
             for (int i = 0; i < 128; i++) {
-                // Orient the sample vector to the surface normal and scale it by the radius
                 geom::vec3 ssao_vec = TBN * ssao_kernel[i];
                 geom::vec3 sample_pos = frag_pos + ssao_vec * radius;
 
-                // Project the 3D sample point to 2D screen space to find which pixel it falls on
-                geom::vec4 clip = Perspective * geom::vec4{sample_pos.x, sample_pos.y, sample_pos.z, 1.0};
-                clip.x /= clip.w;
-                clip.y /= clip.w;
-                clip.z /= clip.w;
+                geom::vec4 clip = Perspective * geom::vec4{sample_pos.x, sample_pos.y, sample_pos.z, 1.0};\
+                geom::vec4 ndc = geom::vec4(clip.x / clip.w, clip.y / clip.w, clip.z / clip.w, 1.0);
 
-                // Transform Normalized Device Coordinates (NDC) to screen pixels
-                geom::vec4 screen = Viewport * clip;
 
+                geom::vec4 screen = Viewport * ndc;
                 int sx = (int)screen.x;
                 int sy = (int)screen.y;
 
-                // Ensure the projected sample is within the screen bounds
                 if (sx < 0 || sx >= width || sy < 0 || sy >= height) continue;
 
-                // Fetch the actual geometry depth at the projected screen coordinate
-                const double z_pos = position_buffer[sx + sy * width].z;
+                double shadow_z_screen = zbuffer[sx + sy * width];
+                if (shadow_z_screen == -std::numeric_limits<double>::max()) continue;
 
-                // Range check: Only occlude if the occluding geometry is close to the fragment.
-                // Depth check: Check if the sample point is behind the actual geometry.
+                geom::vec4 shadow_screen_coord(sx, sy, shadow_z_screen, 1.0);
+                geom::vec4 shadow_view_coord = M_inv * shadow_screen_coord;
+                double z_pos = shadow_view_coord.z / shadow_view_coord.w;
+
                 if (sample_pos.z < z_pos - 0.01 && std::abs(frag_pos.z - z_pos) < radius) {
                     occlusion += 1.0;
                 }
             }
 
-            // Calculate the final ambient occlusion factor.
-            // We divide by 128.0 to average the occlusion, then subtract from 1.0
-            // to invert it (so 1.0 means fully lit, and 0.0 means fully shadowed).
             occlusion = 1.0 - (occlusion / 128.0);
             ao_buffer[idx] = occlusion;
         }
     }
-
-    return ao_buffer;
-}
-
-int main(int argc, char** argv) {
-    constexpr int width  = SIZE;
-    constexpr int height = SIZE;
-
-    TGAImage framebuffer(width, height, TGAImage::RGB);
-    Model diablo(DIABLO);
-    Model floor(FLOOR);
-
-    /* SSAO */
-    std::vector<geom::vec3> ssao_kernel;
-    ssao_kernel.reserve(128);
-
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_real_distribution<double> distribution(0, 1.0);
-
-    auto lerp = [](double a, double b, double f) {
-        return a + f * (b - a);
-    };
-
-    for (int i = 0; i < 128; i++) {
-        // 1. Create a random direction
-        // X and Y are random from -1.0 to 1.0 (covers all horizontal directions)
-        // Z is random from 0.0 to 1.0 (only positive, making it a hemisphere, not a full sphere)
-        geom::vec3 sample = geom::vec3(distribution(gen) * 2.0 - 1.0, distribution(gen) * 2.0 - 1.0, distribution(gen));
-
-        // 2. Push the point to the curved surface of the hemisphere
-        // Now the length of the vector is exactly 1.0
-        sample = normalize(sample); // on hemisphere surface
-
-        // 3. Randomize the distance from the center
-        // Multiply by a random number (0.0 to 1.0) to put the point inside the volume, not just on the shell
-        sample = sample * distribution(gen);
-
-        // 4. Calculate a scale factor based on the loop index (from 0.0 to 1.0)
-        double scale = double(i) / 128.0;
-
-        // 5. Apply an accelerating curve to the scale
-        // By squaring the scale (scale * scale), we force the values to stay smaller for longer.
-        // Then 'lerp' maps this curve to a range between 0.1 and 1.0.
-        scale = lerp(0.1, 1.0, scale * scale);
-
-        // 6. Pull the point closer to the center based on the scale
-        // This creates the cluster of points near the origin
-        sample = sample * scale;
-
-        // 7. Save the calculated point
-        ssao_kernel.push_back(sample);
-    }
-
-    std::vector<geom::vec3> ssao_noise;
-    ssao_noise.reserve(16); // 4x4 texture = 16 pixels
-
-    for (int i = 0; i < 16; i++) {
-        // 1. Create a random rotation vector
-        // X and Y are random from -1.0 to 1.0
-        // Z is exactly 0.0 because we want to rotate around the Z axis in tangent space
-        geom::vec3 noise(distribution(gen) * 2.0 - 1.0, distribution(gen) * 2.0 - 1.0, 0.0); // Important! Z is zero.
-
-
-        // 2. Save the noise vector
-        ssao_noise.push_back(noise);
-    }
-
-
-    //std::vector<double> ao_buffer = compute_AO_bruteforce(width, height, diablo, floor);
-
-    for (int i = 0; i < width; i++) {
-        for (int j = 0; j < height; j++) {
-            framebuffer.set(i, j, black);
-        }
-    }
-    init_zbuffer(width, height);
-
-    lookat(eye, center, up);
-    init_perspective(norm(eye - center));
-    init_viewport(0, 0, width, height);
-
-    position_buffer.assign(width * height, geom::vec3(0, 0, 0));
-    normal_buffer.assign(width * height, geom::vec3(0, 0, 0));
-
-    TGAImage dummy_fb(width, height, TGAImage::RGB);
-
-    GeometryShader geom_shader_floor(floor, width, height);
-    floor.draw_model(dummy_fb, geom_shader_floor);
-
-    GeometryShader geom_shader_diablo(diablo, width, height);
-    diablo.draw_model(dummy_fb, geom_shader_diablo);
-
-    std::vector<double> ao_buffer = compute_SSAO(width, height, ssao_kernel, ssao_noise, position_buffer, normal_buffer);
 
     TGAImage ao_image(width, height, TGAImage::GRAYSCALE);
     for (int y = 0; y < height; y++) {
@@ -283,24 +222,43 @@ int main(int argc, char** argv) {
     }
     ao_image.write_tga_file("ssao_raw.tga");
 
+    return ao_buffer;
+}
+
+int main(int argc, char** argv) {
+    constexpr int width  = SIZE;
+
+    constexpr int height = SIZE;
+
+    TGAImage framebuffer(width, height, TGAImage::RGB);
+    Model diablo(DIABLO);
+    Model floor(FLOOR);
+
+    std::vector<double> ao_buffer = compute_SSAO(width, height, diablo, floor);
+
+    for (int i = 0; i < width; i++) {
+        for (int j = 0; j < height; j++) {
+            framebuffer.set(i, j, black);
+        }
+    }
     init_zbuffer(width, height);
+    lookat(eye, center, up);
+    init_perspective(norm(eye - center));
+    init_viewport(0, 0, width, height);
 
     geom::vec3 light_dir_world = normalize(geom::vec3(1.5, 0.5, 1.5));
 
     NormalTangentSpace floor_shader(light_dir_world, floor, ao_buffer, width);
     floor.draw_model(framebuffer, floor_shader);
 
-
     NormalTangentSpace diablo_shader(light_dir_world, diablo, ao_buffer, width);
     diablo.draw_model(framebuffer, diablo_shader);
 
-    //Post-process
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
             TGAColor color = framebuffer.get(x, y);
 
-            // We always set 40% of the base color, and adjust the remaining 60% using AO
-            color = color *(0.4 + 0.6 * ao_buffer[x + y * width]);
+            color = color * (0.4 + 0.6 * ao_buffer[x + y * width]);
             framebuffer.set(x, y, color);
         }
     }
