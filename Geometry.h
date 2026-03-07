@@ -18,8 +18,8 @@ namespace geom {
             double data[2];
         };
 
-        constexpr vec<2>() : x(0), y(0) {}
-        constexpr vec<2>(double x, double y) : x(x), y(y) {}
+        constexpr vec() : x(0), y(0) {}
+        constexpr vec(double x, double y) : x(x), y(y) {}
 
         double& operator[](const int i) {
             assert(i>=0 && i<2); return data[i];
@@ -35,8 +35,8 @@ namespace geom {
             double data[3];
         };
 
-        constexpr vec<3>() : x(0), y(0), z(0) {}
-        constexpr vec<3>(double x, double y, double z) : x(x), y(y), z(z) {}
+        constexpr vec() : x(0), y(0), z(0) {}
+        constexpr vec(double x, double y, double z) : x(x), y(y), z(z) {}
 
         double& operator[](const int i) {
             assert(i>=0 && i<3); return data[i];
@@ -52,8 +52,8 @@ namespace geom {
             double data[4];
         };
 
-        constexpr vec<4>() : x(0), y(0), z(0), w(0) {}
-        constexpr vec<4>(double x, double y, double z, double w) : x(x), y(y), z(z), w(w) {}
+        constexpr vec() : x(0), y(0), z(0), w(0) {}
+        constexpr vec(double x, double y, double z, double w) : x(x), y(y), z(z), w(w) {}
 
         double& operator[](const int i) {
             assert(i>=0 && i<4);

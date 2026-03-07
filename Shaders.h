@@ -25,6 +25,8 @@ struct MySimpleShader : public IShader {
 struct WireframeShader : public IShader {
     const Model &model;
 
+    WireframeShader(const Model& model) : model(model) {}
+
     virtual geom::vec4 vertex(const int face, const int vert) {
         geom::vec3 v = model.vert(face, vert);                          // current vertex in object coordinates
         geom::vec4 gl_Position = ModelView * geom::vec4{v.x, v.y, v.z, 1.};// in eye coordinates
@@ -41,6 +43,8 @@ struct WireframeShader : public IShader {
 
 struct SolidShader : public IShader {
     const Model &model;
+
+    SolidShader(Model& model) : model(model) {}
 
     virtual geom::vec4 vertex(const int face, const int vert) {
         geom::vec3 v = model.vert(face, vert);                          // current vertex in object coordinates
@@ -286,7 +290,7 @@ struct NormalTangentSpace : public IShader {
 
             int x = (int)screen.x;
             int y = (int)screen.y;
-            int idx = x + y * width;
+            size_t idx = x + y * width;
 
             if (idx >= 0 && idx < ao_buffer.size()) {
                 //ambient = ambient * ao_buffer[idx];
@@ -328,19 +332,19 @@ struct DepthShader : public IShader {
 struct ShadowShader : public IShader {
     const Model &model;
     geom::vec3 light_dir;
-    geom::matrix<4, 4> normalMatrix;
-    int width;
-
+    
     const std::vector<double>& shadow_map;
     geom::matrix<4, 4> M_shadow; // from camera screen to light screen
+    int width;
 
     double exponent = 50.0;
-
     geom::vec3 varying[3];
     geom::vec2 varying_uv[3];
     geom::vec3 tri[3];
+    geom::matrix<4, 4> normalMatrix;
 
-    ShadowShader(const geom::vec3& light, const Model& model, const std::vector<double>& sm, geom::matrix<4, 4> ms, int w)
+    ShadowShader(const Model& model, const geom::vec3& light, const std::vector<double>& sm,
+         geom::matrix<4, 4>& ms, int w)
         : model(model), shadow_map(sm), M_shadow(ms), width(w) {
         geom::vec4 l = ModelView * geom::vec4{light.x, light.y, light.z, 0};
         normalMatrix = transpose(ModelView.inverse());
@@ -403,7 +407,7 @@ struct ShadowShader : public IShader {
         double spec_power = model.specular_from_map(uv);
         TGAColor whitecolor = white;
 
-        int idx = int(frag_light_screen.x) + int(frag_light_screen.y) * width;
+        size_t idx = int(frag_light_screen.x) + int(frag_light_screen.y) * width;
         if (idx < 0 || idx >= shadow_map.size()) return {false, diff_color + whitecolor};
         double shadow = 1.0;
 

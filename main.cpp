@@ -83,7 +83,7 @@ std::vector<double> compute_AO_bruteforce(int width, int height, Model& model, M
         }
     }
 
-    for (int i = 0; i < ao_buffer.size(); i++) {
+    for (size_t i = 0; i < ao_buffer.size(); i++) {
         ao_buffer[i] /= 1000.0;
     }
 
@@ -245,6 +245,8 @@ std::vector<double> compute_SSAO(int width, int height, Model& model, Model& flo
     }
 
     TGAImage ao_image(width, height, TGAImage::GRAYSCALE);
+
+    #pragma omp parallel for
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
             int color_val = std::max(0, std::min(255, (int)(ao_buffer[x + y * width] * 255.0)));
@@ -265,7 +267,7 @@ int main(int argc, char** argv) {
     Model diablo(DIABLO);
     Model floor(FLOOR);
 
-    std::vector<double> ao_buffer = compute_SSAO(width, height, diablo, floor);
+    std::vector<double> ao_buffer = compute_AO_bruteforce(width, height, diablo, floor);
 
     for (int i = 0; i < width; i++) {
         for (int j = 0; j < height; j++) {
@@ -285,6 +287,8 @@ int main(int argc, char** argv) {
     NormalTangentSpace diablo_shader(light_dir_world, diablo, ao_buffer, width);
     diablo.draw_model(framebuffer, diablo_shader);
 
+    //Post-process
+    #pragma omp parallel for
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
             TGAColor color = framebuffer.get(x, y);

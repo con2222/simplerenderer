@@ -60,7 +60,7 @@ Model::Model(const std::string& fileName) {
                 continue;
             }
             if (line[0] == 'v' && line[1] == ' ') {
-                size_t index = line.find_first_of(digits);
+                long unsigned int index = line.find_first_of(digits);
 
                 if (index != std::string::npos) {
                     line = line.substr(index);
@@ -72,7 +72,7 @@ Model::Model(const std::string& fileName) {
 
                 verts.push_back(geom::vec<3>({xt, yt, zt}));
             } else if (line[0] == 'f' && line[1] == ' ') {
-                size_t index = line.find_first_of(digits);
+                long unsigned int index = line.find_first_of(digits);
 
                 if (index != std::string::npos) {
                     line = line.substr(index);
@@ -102,7 +102,7 @@ Model::Model(const std::string& fileName) {
                 
             } else if (line.substr(0, 2) == "vt") {
 
-                int index = line.find_first_of(digits);
+                long unsigned int index = line.find_first_of(digits);
 
                 if (index != std::string::npos) {
                     line = line.substr(index);
@@ -114,7 +114,7 @@ Model::Model(const std::string& fileName) {
 
                 tex_coords.push_back(geom::vec<3>({x, y, z}));
             } else if (line.substr(0, 2) == "vn") {
-                int index = line.find_first_of(digits);
+                long unsigned int index = line.find_first_of(digits);
 
                 if (index != std::string::npos) {
                     line = line.substr(index);
@@ -134,13 +134,7 @@ Model::Model(const std::string& fileName) {
 
 void Model::draw_model(TGAImage& framebuffer, IShader& shader) const {
 
-    int frame_count = 0;
-    std::string out_dir = "frames";
-    fs::create_directories(out_dir);
-    std::cout << "Current path is: " << std::filesystem::current_path() << std::endl;
-    int save_every_n = 30;
-
-    for (int i = 0; i < faces.size(); i++) {
+    for (size_t i = 0; i < faces.size(); i++) {
         geom::vec4 clip_coords[3];
         geom::vec3 world_coords[3];
 
@@ -148,14 +142,6 @@ void Model::draw_model(TGAImage& framebuffer, IShader& shader) const {
             clip_coords[j] = shader.vertex(i, j);
             world_coords[j] = vert(i, j);
         }
-
-        /*RandomShader& rndShader = static_cast<RandomShader&>(shader);
-        if (rndShader) {
-            rndShader.color = {static_cast<uint8_t>(std::rand()%256),
-            static_cast<uint8_t>(std::rand()%256),
-            static_cast<uint8_t>(std::rand()%256),
-            255};
-        }*/
 
         triangle_barycentric_bounding_box(clip_coords, framebuffer, shader);
     }
