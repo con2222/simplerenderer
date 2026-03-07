@@ -457,42 +457,45 @@ struct GeometryShader : IShader {
     }
 };
 
-struct ToonShader : IShader {
+struct ToonShader : public IShader {
     const Model& model;
-    const geom::vec3& light_direction;
-    
-    geom::vec2 varying_uv[3];
-
-
-    geom::vec3 varying_normal;
+    geom::vec3 light_dir;
+    TGAColor color;
+    geom::vec3 varying_normal[3];
     geom::matrix<4, 4> normalMatrix;
 
-    ToonShader(const Model& model, geom::vec3 l) : model(model), light_direction(l) {
-        normalMatrix = Modelview.inverse();
+    ToonShader(const Model& model, const geom::vec3& l, TGAColor c) : model(model), color(c) {
+        normalMatrix = ModelView.inverse();
+        light_dir = (ModelView * geom::vec4{l.x, l.y, l.z, 0.}).xyz();
     }
 
     virtual geom::vec4 vertex(int face, int nthvert) override {
-        geom::vec4 n = normalMatrix * geom::vec4(model.normal(face, nthvert).x, model.normal(face, nthvert).y, 
-            model.normal(face, nthvert).z, 0.);
+        geom::vec3 v = model.vert(face, nthvert);
+        geom::vec3 n = model.normal(face, nthvert);
 
-        geom::vec4 gl_Position = (ModelView * geom::vec4(model.vert(face, nthvert).x, model.vert(face, nthvert).y 
-            model.vert(face, nthvert).z 1.))
+        //translate normal
+        geom::vec4 normal = normalMatrix * geom::vec4{n.x, n.y, n.z, 0.};
+        varying_normal[nthvert] = normal.xyz();
 
-        tri[nthvert] = gl_Position.xyz();
-
-        varying_normal[nthvert] = normalize(n.xyz());
-        varying_uv[nthvert] = model.uv(face, nthvert);
-
-        return Perspective * gl_Position;
+        return Perspective * ModelView * geom::vec4{v.x, v.y, v.z, 1.};
     }
 
-    virtual std::pair<bool, TGAColor> fragment(geom::vec3& bar) const override {
+    virtual std::pair<bool, TGAColor> fragment(geom::vec3 bar) const override {
+        geom::vec3 normal = varying_normal[0] * bar.x + varying_normal[1] * bar.y + varying_normal[2] * bar.z;
+        normal = geom::normalize(normal);
 
+        double intensity = std::max(0., dot(normal, light_dir));
 
-        return {false, geom::vec3()};
+        if (intensity > 0.85) {
+            intensity = 1.0;
+        } else if (intensity > 0.5) {
+            intensity = 0.7;
+        } else if (intensity > 0.2) {
+            intensity = 0.4;
+        } else {
+            intensity = 0.15;
+        }
+
+        return {false, color * intensity};
     }
-
-
-    geom::vec3 tri[3];
-
-}
+};

@@ -281,10 +281,12 @@ int main(int argc, char** argv) {
 
     geom::vec3 light_dir_world = normalize(geom::vec3(1.5, 0.5, 1.5));
 
-    NormalTangentSpace floor_shader(light_dir_world, floor, ao_buffer, width);
+    //NormalTangentSpace floor_shader(light_dir_world, floor, ao_buffer, width);
+    ToonShader floor_shader(floor, light_dir_world, blue);
     floor.draw_model(framebuffer, floor_shader);
 
-    NormalTangentSpace diablo_shader(light_dir_world, diablo, ao_buffer, width);
+    ToonShader diablo_shader(diablo, light_dir_world, orange);
+    //NormalTangentSpace diablo_shader(light_dir_world, diablo, ao_buffer, width);
     diablo.draw_model(framebuffer, diablo_shader);
 
     //Post-process
