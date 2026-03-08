@@ -10,23 +10,29 @@
 
 * **Tangent Space Normal Mapping:** Реализация попиксельного рельефа с использованием матриц **TBN** (Tangent, Bitangent, Normal) для корректного преобразования векторов в мировое пространство.
 
-<img width="5689" height="5689" alt="diabloSS" src="https://github.com/user-attachments/assets/b31dc2a6-5d10-40c9-b8c9-35f7e6d3ade7" />
+<img width="5689" height="5689" alt="diabloSS" src="https://github.com/user-attachments/assets/9b770b1b-3253-44a5-bc6e-f6b2d03345cd" />
 
 * **SSAO (Screen Space Ambient Occlusion):** Динамическое затенение в экранном пространстве. Использует полусферное ядро из 128 выборок и буфер глубины для расчета окклюзии.
 *Визуализация SSAO Buffer:*
 
-<img width="5689" height="5689" alt="ssao_raw" src="https://github.com/user-attachments/assets/8a32932e-33d1-4d1d-a914-07c712738d21" />
+<img width="5689" height="5689" alt="ssao_raw" src="https://github.com/user-attachments/assets/b014968a-41a0-470b-9569-4a4ad60cbac5" />
 
 * **Toon/Cel Shading:** Стилизованный рендеринг с квантованием освещенности и пост-процессингом на основе фильтра Собеля для детекции границ и создания контуров.
 
-<img width="5689" height="5689" alt="toon" src="https://github.com/user-attachments/assets/f2a5d84f-ec59-43a4-806e-c6495d438968" />
+<img width="5689" height="5689" alt="toon" src="https://github.com/user-attachments/assets/5c7b1ab0-4dc5-4046-b029-2e70ad769c06" />
 
 ### Ядро системы (Core Engine)
 
 * **Barycentric Rasterizer:** Оптимизированный растеризатор, использующий барицентрические координаты для интерполяции атрибутов вершин. Распараллелен с помощью **OpenMP** для повышения производительности.
 *Z-Buffer (Визуализация глубины):*
+
+<img width="5689" height="5689" alt="zbuffer_image" src="https://github.com/user-attachments/assets/92eefd19-e68d-40c8-82ff-9528a01a6015" />
+
 * **AO & Shadow Mapping:** Поддержка **Brute-force AO** (1000 лучей на пиксель) в качестве эталона для сравнения с SSAO.
 *AO Brute-force:*
+
+<img width="5689" height="5689" alt="ao_buffer" src="https://github.com/user-attachments/assets/109e1e55-3686-4832-bf39-46239ce4efc4" />
+
 * **CLI Interface:** Гибкая настройка сцены через аргументы командной строки: загрузка нескольких моделей, настройка цветов, освещения и выбор шейдера.
 ---
 
