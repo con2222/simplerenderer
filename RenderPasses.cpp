@@ -375,7 +375,7 @@ void render_scene(TGAImage& framebuffer, Pipeline& pipeline, const std::vector<M
     // Clear screen to white
     for (int i = 0; i < width; i++) {
         for (int j = 0; j < height; j++) {
-            framebuffer.set(i, j, white);
+            framebuffer.set(i, j, dark_gray);
         }
     }
 

@@ -148,9 +148,6 @@ Model::Model(const std::string& fileName) {
 }
 
 void Model::draw_model(TGAImage& framebuffer, IShader& shader, Pipeline& pipeline) const {
-    static int global_frame_count = 0;
-    int save_every_n = 50;
-
     for (size_t i = 0; i < faces.size(); i++) {
         geom::vec4 clip_coords[3];
         geom::vec3 world_coords[3];
@@ -161,12 +158,6 @@ void Model::draw_model(TGAImage& framebuffer, IShader& shader, Pipeline& pipelin
         }
 
         triangle_barycentric_bounding_box(clip_coords, framebuffer, shader, pipeline);
-
-        if (global_frame_count % save_every_n == 0) {
-            std::string filename = "frames/frame_" + std::to_string(global_frame_count / save_every_n) + ".tga";
-            framebuffer.write_tga_file(filename);
-        }
-        global_frame_count++;
     }
 }
 
