@@ -1,18 +1,27 @@
 #include "our_gl.h"
-#include <vector>
 
-geom::matrix<4, 4> ModelView, Viewport, Perspective;
-std::vector<double> zbuffer;
+#include <algorithm>
 
-void init_viewport(const int x, const int y, const int width, const int height) {
-    Viewport = {{{width/2., 0, 0, x + width/2.}, {0, height/2., 0, y + height/2.}, {0, 0, 1, 0}, {0, 0, 0, 1}}};
+Pipeline::Pipeline(int w, int h) : width(w), height(h) {
+    clear_zbuffer();
+    ModelView = geom::matrix<4,4>::identity();
+    Viewport = geom::matrix<4,4>::identity();
+    Perspective = geom::matrix<4,4>::identity();
 }
 
-void init_perspective(const double f) {
+void Pipeline::clear_zbuffer() {
+    zbuffer.assign(width * height, -std::numeric_limits<double>::max());
+}
+
+void Pipeline::init_viewport(const int x, const int y, const int w, const int h) {
+    Viewport = {{{w/2., 0, 0, x + w/2.}, {0, h/2., 0, y + h/2.}, {0, 0, 1, 0}, {0, 0, 0, 1}}};
+}
+
+void Pipeline::init_perspective(const double f) {
     Perspective = {{{1,0,0,0}, {0,1,0,0}, {0,0,1,0}, {0,0, -1/f,1}}};
 }
 
-void lookat(geom::vec3 eye, geom::vec3 center, geom::vec3 up) {
+void Pipeline::lookat(geom::vec3 eye, geom::vec3 center, geom::vec3 up) {
     geom::vec<3> n = normalize((eye - center));
     geom::vec<3> l = normalize(cross(up, n));
     geom::vec<3> m = normalize(cross(n, l));
@@ -22,13 +31,8 @@ void lookat(geom::vec3 eye, geom::vec3 center, geom::vec3 up) {
     ModelView = Rotation * Translation;
 }
 
-void init_zbuffer(const int width, const int height) {
-    zbuffer = std::vector<double>(width*height, -std::numeric_limits<double>::max());
-}
-
-void create_zbuffer_image(TGAImage& zbuffer_image) {
-    int width = zbuffer_image.width();
-    int height = zbuffer_image.height();
+void Pipeline::save_zbuffer(const std::string& filename) {
+    TGAImage zbuffer_image(width, height, TGAImage::GRAYSCALE);
 
     double min_z = std::numeric_limits<double>::max();
     double max_z = -std::numeric_limits<double>::max();
@@ -40,44 +44,18 @@ void create_zbuffer_image(TGAImage& zbuffer_image) {
         }
     }
 
-    if (max_z == min_z) max_z = min_z + 1.0f;
+    if (max_z == min_z) max_z = min_z + 1.0;
 
     for (int i = 0; i < width * height; i++) {
         if (zbuffer[i] != -std::numeric_limits<double>::max()) {
             double normalized_z = (zbuffer[i] - min_z) / (max_z - min_z);
 
-            int color = normalized_z * 255.f;
+            int color = normalized_z * 255.0;
             color = std::max(0, std::min(255, color));
 
             zbuffer_image.set(i % width, i / width, {static_cast<unsigned char>(color)});
         }
     }
 
-    zbuffer_image.write_tga_file("zbuffer.tga");
-}
-
-void save_depth_buffer(const std::vector<double>& buffer, int width, int height, const std::string& filename) {
-    TGAImage img(width, height, TGAImage::GRAYSCALE);
-
-    double min_z = std::numeric_limits<double>::max();
-    double max_z = -std::numeric_limits<double>::max();
-
-    for (double z : buffer) {
-        if (z != -std::numeric_limits<double>::max()) {
-            if (z < min_z) min_z = z;
-            if (z > max_z) max_z = z;
-        }
-    }
-
-    if (max_z == min_z) max_z = min_z + 1.0;
-
-    for (int i = 0; i < width * height; i++) {
-        if (buffer[i] != -std::numeric_limits<double>::max()) {
-            double normalized_z = (buffer[i] - min_z) / (max_z - min_z);
-            int color = static_cast<int>(normalized_z * 255.0);
-            img.set(i % width, i / width, TGAColor({static_cast<unsigned char>(color)}));
-        }
-    }
-
-    img.write_tga_file(filename);
+    zbuffer_image.write_tga_file(filename);
 }

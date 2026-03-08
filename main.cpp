@@ -1,393 +1,155 @@
-#include <string>
-#include <ctime>
-#include <random>
-
-#include "ModelsNames.h"
-#include "Shaders.h"
-
-#include <string>
-#include <ctime>
+#include <iostream>
 #include <vector>
-#include <limits>
+#include <string>
+#include <algorithm>
+#include <memory>
 
-#include "ModelsNames.h"
+#include "color.h"
+#include "RenderPasses.h"
 #include "Shaders.h"
 #include "our_gl.h"
 
-std::vector<double> compute_AO_bruteforce(int width, int height, Model& model, Model& floor) {
-    std::vector<double> ao_buffer(width * height, 0.0);
-    TGAImage dummy_fb(width, height, TGAImage::GRAYSCALE);
-
-    std::vector<geom::vec3> light_dirs(1000);
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_real_distribution<double> distribution(-1.0, 1.0);
-
-    for (int i = 0; i < 1000; i++) {
-        for (int j = 0; j < 3; j++) {
-            auto value = distribution(gen);
-            light_dirs[i][j] = value;
-        }
-        if (norm(light_dirs[i]) > 1.0) {
-            i--;
-        } else {
-            light_dirs[i].y = light_dirs[i].y < 0. ? light_dirs[i].y * -1 : light_dirs[i].y;
-            light_dirs[i] = normalize(light_dirs[i]);
-        }
+// Kept for single flags like -f, -w
+std::string get_cmd_option(char **begin, char **end, const std::string &option, const std::string &default_value = "") {
+    char **itr = std::find(begin, end, option);
+    if (itr != end && ++itr != end) {
+        return std::string(*itr);
     }
-
-    lookat(eye, center, up);
-    init_perspective(norm(eye - center));
-    init_viewport(0, 0, width, height);
-    init_zbuffer(width, height);
-
-    DepthShader depth_shader_diablo(model);
-    model.draw_model(dummy_fb, depth_shader_diablo);
-    DepthShader depth_shader_floor(floor);
-    floor.draw_model(dummy_fb, depth_shader_floor);
-
-    std::vector<double> camera_zbuffer = zbuffer;
-    geom::matrix<4, 4> M_camera_full = Viewport * Perspective * ModelView;
-    geom::matrix<4, 4> M_camera_inv = M_camera_full.inverse();
-
-    for (int i = 0; i < 1000; i++ ) {
-        geom::vec3 light_pos = light_dirs[i] * 3.0;
-        lookat(light_pos, center, up);
-        init_perspective(norm(light_pos - center));
-        init_viewport(0, 0, width, height);
-        init_zbuffer(width, height);
-        model.draw_model(dummy_fb, depth_shader_diablo);
-        floor.draw_model(dummy_fb, depth_shader_floor);
-        geom::matrix<4, 4> M_light_full = Viewport * Perspective * ModelView;
-
-        geom::matrix<4, 4> M_screen_to_light = M_light_full * M_camera_inv;
-
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                double z = camera_zbuffer[x + y * width];
-                if (z == -std::numeric_limits<double>::max()) continue;
-                geom::vec4 frag_screen(x, y, z, 1.0);
-                geom::vec4 frag_light = M_screen_to_light * frag_screen;
-                frag_light.x = frag_light.x / frag_light.w;
-                frag_light.y = frag_light.y / frag_light.w;
-                frag_light.z = frag_light.z / frag_light.w;
-
-                if (frag_light.x < 0 || frag_light.x >= width || frag_light.y < 0 || frag_light.y >= height) continue;
-                int light_idx = (int)frag_light.x + (int)frag_light.y * width;
-                double shadow_z = zbuffer[light_idx];
-
-                if (frag_light.z > shadow_z - 0.01) {
-                    ao_buffer[x + y * width] += 1.0;
-                }
-            }
-        }
-    }
-
-    for (size_t i = 0; i < ao_buffer.size(); i++) {
-        ao_buffer[i] /= 1000.0;
-    }
-
-    TGAImage ao(width, height, TGAImage::GRAYSCALE);
-    for (int y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
-            ao.set(x, y, {static_cast<unsigned char>(ao_buffer[x + y * width] * 255.0)});
-        }
-    }
-    ao.write_tga_file("ao_buffer.tga");
-
-    return ao_buffer;
+    return default_value;
 }
 
-void visualize_ssao_kernel(const std::vector<geom::vec3>& kernel) {
-    int size = 512;
-    TGAImage viz(size, size, TGAImage::RGB);
-
-    // Рисуем оси для наглядности
-    for(int i=0; i<size; i++) {
-        viz.set(i, size/2, TGAColor{100, 100, 100, 255}); // Ось X
-        viz.set(size/2, i, TGAColor{100, 100, 100, 255}); // Ось Z (высота)
-    }
-
-    for (const auto& sample : kernel) {
-        // Переводим координаты из [-1, 1] в пиксели [0, 512]
-        // Мы смотрим на полусферу "сбоку", поэтому берем X и Z
-        int x = (sample.x + 1.0) * (size / 2);
-        int z = (sample.z + 0.0) * (size / 1.0); // Z у нас от 0 до 1, поэтому смещаем иначе
-
-        // Рисуем точку (жирную, чтобы было видно)
-        for(int dx=-2; dx<=2; dx++) {
-            for(int dz=-2; dz<=2; dz++) {
-                if (x+dx >= 0 && x+dx < size && (size-z)+dz >= 0 && size-z+dz < size)
-                    viz.set(x + dx, (size - z) + dz, TGAColor{255, 255, 255, 255});
-            }
+// Collects all arguments after a flag until another flag is encountered
+std::vector<std::string> get_cmd_multiple_options(char **begin, char **end, const std::string &option) {
+    std::vector<std::string> results;
+    char **itr = std::find(begin, end, option);
+    if (itr != end && ++itr != end) {
+        while (itr != end && (*itr)[0] != '-') {
+            results.push_back(std::string(*itr));
+            ++itr;
         }
     }
-    viz.write_tga_file("kernel_viz.tga");
+    return results;
 }
 
-std::vector<double> compute_SSAO(int width, int height, Model& model, Model& floor) {
-
-    std::vector<geom::vec3> ssao_kernel;
-    ssao_kernel.reserve(128);
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_real_distribution<double> distribution(0, 1.0);
-    auto lerp = [](double a, double b, double f) { return a + f * (b - a); };
-
-    for (int i = 0; i < 128; i++) {
-        geom::vec3 sample(distribution(gen) * 2.0 - 1.0, distribution(gen) * 2.0 - 1.0, distribution(gen));
-        sample = normalize(sample);
-        sample = sample * distribution(gen);
-        double scale = double(i) / 128.0;
-        scale = lerp(0.1, 1.0, scale * scale);
-        sample = sample * scale;
-        ssao_kernel.push_back(sample);
-    }
-
-    visualize_ssao_kernel(ssao_kernel);
-
-    std::vector<geom::vec3> ssao_noise;
-    ssao_noise.reserve(16);
-    for (int i = 0; i < 16; i++) {
-        geom::vec3 noise(distribution(gen) * 2.0 - 1.0, distribution(gen) * 2.0 - 1.0, 0.0);
-        ssao_noise.push_back(noise);
-    }
-
-    lookat(eye, center, up);
-    init_perspective(norm(eye - center));
-    init_viewport(0, 0, width, height);
-    init_zbuffer(width, height);
-
-    TGAImage normal_fb(width, height, TGAImage::RGB);
-
-    GeometryShader geom_shader_floor(floor);
-    floor.draw_model(normal_fb, geom_shader_floor);
-
-    GeometryShader geom_shader_diablo(model);
-    model.draw_model(normal_fb, geom_shader_diablo);
-
-    std::vector<double> ao_buffer(width * height, 0.0);
-    double radius = 1.5;
-    geom::matrix<4, 4> M_inv = (Viewport * Perspective).inverse(); // from 2D to 3D
-
-    for (int y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
-            int idx = x + y * width;
-            double z_screen = zbuffer[idx];
-
-            if (z_screen == -std::numeric_limits<double>::max()) {
-                ao_buffer[idx] = 1.0;
-                continue;
-            }
-
-            geom::vec4 screen_coord(x, y, z_screen, 1.0);
-            geom::vec4 view_coord = M_inv * screen_coord; // frag_pos to 3D
-            geom::vec3 frag_pos(
-                view_coord.x / view_coord.w,
-                view_coord.y / view_coord.w,
-                view_coord.z / view_coord.w
-            );
-
-            TGAColor c = normal_fb.get(x, y);
-
-            geom::vec3 normal(
-                c.bgra[2] / 127.5 - 1.0,
-                c.bgra[1] / 127.5 - 1.0,
-                c.bgra[0] / 127.5 - 1.0
-            );
-
-            normal = geom::normalize(normal);
-
-            if (norm(normal) < 0.1) {
-                ao_buffer[idx] = 1.0;
-                continue;
-            }
-
-            int noise_x = x % 4;
-            int noise_y = y % 4;
-            geom::vec3 random_vec = ssao_noise[noise_x + noise_y * 4];
-
-            geom::vec3 t = geom::normalize(random_vec - normal * dot(random_vec, normal));
-            geom::vec3 b = cross(normal, t);
-            geom::matrix<3, 3> TBN = {{{t.x, b.x, normal.x}, {t.y, b.y, normal.y}, {t.z, b.z, normal.z}}};
-
-            double occlusion = 0.0;
-
-            for (int i = 0; i < 128; i++) {
-                geom::vec3 ssao_vec = TBN * ssao_kernel[i];
-                geom::vec3 sample_pos = frag_pos + ssao_vec * radius;
-
-                geom::vec4 clip = Perspective * geom::vec4{sample_pos.x, sample_pos.y, sample_pos.z, 1.0};\
-                geom::vec4 ndc = geom::vec4(clip.x / clip.w, clip.y / clip.w, clip.z / clip.w, 1.0);
-
-
-                geom::vec4 screen = Viewport * ndc;
-                int sx = (int)screen.x;
-                int sy = (int)screen.y;
-
-                if (sx < 0 || sx >= width || sy < 0 || sy >= height) continue;
-
-                double shadow_z_screen = zbuffer[sx + sy * width];
-                if (shadow_z_screen == -std::numeric_limits<double>::max()) continue;
-
-                geom::vec4 shadow_screen_coord(sx, sy, shadow_z_screen, 1.0);
-                geom::vec4 shadow_view_coord = M_inv * shadow_screen_coord;
-                double z_pos = shadow_view_coord.z / shadow_view_coord.w;
-
-                if (sample_pos.z < z_pos - 0.01 && std::abs(frag_pos.z - z_pos) < radius) {
-                    occlusion += 1.0;
-                }
-            }
-
-            occlusion = 1.0 - (occlusion / 128.0);
-            ao_buffer[idx] = occlusion;
-        }
-    }
-
-    TGAImage ao_image(width, height, TGAImage::GRAYSCALE);
-
-    #pragma omp parallel for
-    for (int y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
-            int color_val = std::max(0, std::min(255, (int)(ao_buffer[x + y * width] * 255.0)));
-            ao_image.set(x, y, TGAColor({static_cast<unsigned char>(color_val)}));
-        }
-    }
-    ao_image.write_tga_file("ssao_raw.tga");
-
-    return ao_buffer;
+bool cmd_option_exists(char** begin, char** end, const std::string& option) {
+    return std::find(begin, end, option) != end;
 }
 
 int main(int argc, char** argv) {
-    constexpr int width  = SIZE;
-    constexpr int height = SIZE;
 
-    geom::matrix<3, 3> sobel_x = geom::matrix<3, 3>({{{-1, 0, 1}, {-2, 0, 2}, {-1, 0, 1}}});
-    geom::matrix<3, 3> sobel_y = geom::matrix<3, 3>({{{-1, -2, -1}, {0, 0, 0}, {1, 2, 1}}});
+    // 1. Check for help flag
+    if (cmd_option_exists(argv, argv + argc, "-h") || cmd_option_exists(argv, argv + argc, "--help")) {
+        std::cout << "Usage: " << argv[0] << " [options]\n"
+                  << "Options:\n"
+                  << "  -m <paths...>   Paths to one or MORE main models (.obj)\n"
+                  << "  -c <colors...>  Colors for the main models (e.g., 'gold', 'red', 'white')\n"
+                  << "  -f <path>       Path to the floor model (.obj)\n"
+                  << "  -fc <color>     Color for the floor model (default: blue)\n"
+                  << "  -l <x> <y> <z>  Light direction vector (default: -1.5 0.5 1.5)\n"
+                  << "  -w <width>      Window width (default: 2048)\n"
+                  << "  -s <height>     Window height (default: 2048)\n"
+                  << "  -ao <type>      AO method: 'ssao', 'bruteforce', or 'none' (default: ssao)\n"
+                  << "  -shader <type>  Shader type: 'toon', 'gouraud', 'phong', 'simple', 'wireframe',\n"
+                  << "                  'solid', 'random', 'normalmap', 'geometry', 'tangentspace' (default: toon)\n";
+        return 0;
+    }
 
+    // 2. Parse arguments
+    // Parse main model paths (fallback to diablo3 if none provided)
+    std::vector<std::string> model_paths = get_cmd_multiple_options(argv, argv + argc, "-m");
+    if (model_paths.empty()) {
+        model_paths.push_back("obj/diablo3_pose/diablo3_pose.obj");
+    }
+
+    // Parse floor path, AO method, and shader type
+    std::string floor_path = get_cmd_option(argv, argv + argc, "-f", "obj/floor.obj");
+    std::string ao_type    = get_cmd_option(argv, argv + argc, "-ao", "ssao");
+    std::string shader_type = get_cmd_option(argv, argv + argc, "-shader", "toon");
+
+    // Parse and convert colors for models and floor
+    std::vector<std::string> color_names = get_cmd_multiple_options(argv, argv + argc, "-c");
+    std::string floor_color_name = get_cmd_option(argv, argv + argc, "-fc", "blue");
+
+    std::vector<TGAColor> model_colors;
+    for (const auto& name : color_names) {
+        model_colors.push_back(get_color_by_name(name));
+    }
+
+    if (model_colors.empty()) {
+        model_colors.push_back(orange); // Default color
+    }
+
+    TGAColor floor_color = get_color_by_name(floor_color_name);
+
+    // Parse light direction vector (x, y, z) and normalize it
+    std::vector<std::string> light_args = get_cmd_multiple_options(argv, argv + argc, "-l");
+    geom::vec3 light_dir(-1.5, 0.5, 1.5);
+    if (light_args.size() >= 3) {
+        try {
+            light_dir.x = std::stod(light_args[0]);
+            light_dir.y = std::stod(light_args[1]);
+            light_dir.z = std::stod(light_args[2]);
+        } catch (...) {
+            std::cout << "Warning: Invalid light direction arguments, using default.\n";
+            light_dir = geom::vec3(-1.5, 0.5, 1.5);
+        }
+    }
+    light_dir = geom::normalize(light_dir);
+
+    // Parse window dimensions
+    int width = std::stoi(get_cmd_option(argv, argv + argc, "-w", "2048"));
+    int height = std::stoi(get_cmd_option(argv, argv + argc, "-s", "2048"));
+
+    std::cout << "Initializing renderer (" << width << "x" << height << ")...\n";
+
+    // Initialize renderer, buffers, and load 3D models into memory
+    Pipeline pipeline(width, height);
     TGAImage framebuffer(width, height, TGAImage::RGB);
-    Model diablo(DIABLO);
-    Model floor(FLOOR);
 
-    //std::vector<double> ao_buffer = compute_AO_bruteforce(width, height, diablo, floor);
-    std::vector<double> ao_buffer = compute_SSAO(width, height, diablo, floor);
+    Model floor(floor_path);
 
-
-    /* Blur pass */
-    std::vector<double> blurred_ao(width * height, 0.0);
-
-    #pragma omp parallel for
-    for (int y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
-            double result = 0.0;
-            int count = 0; // Count actual neighbors (important for screen edges)
-
-            // Loop through a 4x4 square around the current pixel
-            for (int dy = -2; dy < 2; dy++) {
-                for (int dx = -2; dx < 2; dx++) {
-                    int nx = x + dx;
-                    int ny = y + dy;
-
-                    // Protect against out-of-bounds screen coordinates
-                    if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-                        result += ao_buffer[nx + ny * width];
-                        count++;
-                    }
-                }
-            }
-            // Write the averaged value to the NEW buffer
-            blurred_ao[x + y * width] = result / (double)count;
-        }
+    std::vector<Model*> scene_models;
+    for (const auto& path : model_paths) {
+        std::cout << "Loading model: " << path << "\n";
+        scene_models.push_back(new Model(path));
     }
 
+    // 3. Ambient Occlusion Pass
+    std::vector<double> final_ao_buffer;
 
-    for (int i = 0; i < width; i++) {
-        for (int j = 0; j < height; j++) {
-            framebuffer.set(i, j, white);
-        }
+    if (ao_type == "ssao") {
+        std::cout << "Method: SSAO (Screen Space Ambient Occlusion)\n";
+        std::vector<double> raw_ao = compute_SSAO(width, height, scene_models, floor, pipeline);
+        std::cout << "Applying Blur to SSAO...\n";
+        final_ao_buffer = apply_ssao_blur(raw_ao, width, height);
     }
-    init_zbuffer(width, height);
-    lookat(eye, center, up);
-    init_perspective(norm(eye - center));
-    init_viewport(0, 0, width, height);
-
-    geom::vec3 light_dir_world = normalize(geom::vec3(-1.5, 0.5, 1.5));
-
-    //NormalTangentSpace floor_shader(light_dir_world, floor, ao_buffer, width);
-    ToonShader floor_shader(floor, light_dir_world, blue);
-    floor.draw_model(framebuffer, floor_shader);
-
-    ToonShader diablo_shader(diablo, light_dir_world, orange);
-    //NormalTangentSpace diablo_shader(light_dir_world, diablo, ao_buffer, width);
-    diablo.draw_model(framebuffer, diablo_shader);
-
-    /* //Post-process
-    #pragma omp parallel for
-    for (int y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
-            TGAColor color = framebuffer.get(x, y);
-
-            double frag_z = zbuffer[x + y * width];
-            if (x + 1 >= width || y + 1 >= height) continue;
-            double frag_next_xz = zbuffer[x + 1 + y * width];
-            double frag_next_yz = zbuffer[x + (y + 1) * width];
-            double abs_diff_x = std::abs(frag_z - frag_next_xz);
-            double abs_diff_y = std::abs(frag_z - frag_next_yz);
-
-            if (abs_diff_x > 0.01 || abs_diff_y > 0.01) {framebuffer.set(x, y, black); continue;}
-            color = color * (0.4 + 0.6 * ao_buffer[x + y * width]);
-            framebuffer.set(x, y, color);
-        }
-    }*/
-
-    // Define the color for our stylized shadow (Dark Purple in BGRA format)
-    TGAColor shadow_tint{150, 0, 100, 255};
-
-    #pragma omp parallel for
-    for (int y = 1; y < height - 1; y++) {
-        for (int x = 1; x < width - 1; x++) {
-            TGAColor color = framebuffer.get(x, y);
-
-            double tl = zbuffer[(x - 1) + (y - 1) * width]; // Top-Left
-            double tc = zbuffer[x       + (y - 1) * width]; // Top-Center
-            double tr = zbuffer[(x + 1) + (y - 1) * width]; // Top-Right
-
-            double ml = zbuffer[(x - 1) + y * width];       // Mid-Left
-            double mc = zbuffer[x       + y * width];       // Mid-Center
-            double mr = zbuffer[(x + 1) + y * width];       // Mid-Right
-
-            double bl = zbuffer[(x - 1) + (y + 1) * width]; // Bottom-Left
-            double bc = zbuffer[x       + (y + 1) * width]; // Bottom-Center
-            double br = zbuffer[(x + 1) + (y + 1) * width]; // Bottom-\
-
-            double gx = (tr - tl) + 2.0 * (mr - ml) + (br - bl);
-            double gy = (bl - tl) + 2.0 * (bc - tc) + (br - tr);
-            double edge = std::sqrt(gx * gx + gy * gy);
-
-
-            if (edge > 0.05) {
-                framebuffer.set(x, y, black);
-                continue;
-            }
-
-            // 1. Calculate how lit this pixel is (ranges from 0.4 to 1.0)
-            double light_factor = 0.4 + 0.6 * blurred_ao[x + y * width];
-
-            // 2. Calculate how much in shadow this pixel is (ranges from 0.0 to 0.6)
-            double shadow_factor = 1.0 - light_factor;
-
-            // 3. Blend the colors!
-            // Scale the base color by the light factor, and add the purple tint to the shaded areas
-            color = color * light_factor + shadow_tint * shadow_factor;
-
-            color = color * (0.4 + 0.6 * blurred_ao[x + y * width]);
-            framebuffer.set(x, y, color);
-        }
+    else if (ao_type == "bruteforce") {
+        std::cout << "Method: Brute-force Raycasting (Reference AO)\n";
+        final_ao_buffer = compute_AO_bruteforce(width, height, scene_models, floor, pipeline);
+    }
+    else {
+        std::cout << "Method: None (AO disabled)\n";
+        final_ao_buffer = std::vector<double>(width * height, 1.0);
     }
 
-    TGAImage zbuffer_image(width, height, TGAImage::GRAYSCALE);
-    create_zbuffer_image(zbuffer_image);
+    // 4. Main Rendering Pass
+    std::cout << "Rendering scene geometry with '" << shader_type << "' shader...\n";
+    render_scene(framebuffer, pipeline, scene_models, floor, shader_type, model_colors, floor_color, light_dir);
 
+    // 5. Post-Processing Pass
+    bool enable_outline = (shader_type == "toon");
+    std::cout << "Applying Sobel outlines and blending AO shadows...\n";
+    apply_post_processing(framebuffer, pipeline, final_ao_buffer, enable_outline);
+
+    // 6. Output
+    std::cout << "Saving files...\n";
+    pipeline.save_zbuffer("zbuffer_image.tga");
     framebuffer.write_tga_file("framebuffer.tga");
+
+    for (Model* m : scene_models) {
+        delete m;
+    }
+
+    std::cout << "Render complete!\n";
     return 0;
 }

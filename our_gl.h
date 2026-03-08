@@ -1,25 +1,26 @@
 #pragma once
 #include "tgaimage.h"
 #include "Geometry.h"
+#include <vector>
+#include <string>
 
-extern geom::matrix<4,4> ModelView, Viewport, Perspective;
-extern std::vector<double> zbuffer;
+class Pipeline {
+public:
+    geom::matrix<4,4> ModelView;
+    geom::matrix<4,4> Viewport;
+    geom::matrix<4,4> Perspective;
+    std::vector<double> zbuffer;
+    int width, height;
 
-//constexpr geom::vec3    eye{-1, 0, 2}; // camera position
+    Pipeline(int w, int h);
 
-constexpr geom::vec3 eye(1, 0, 1.5);
+    void lookat(geom::vec3 eye, geom::vec3 center, geom::vec3 up);
+    void init_perspective(const double f);
+    void init_viewport(const int x, const int y, const int w, const int h);
+    void clear_zbuffer();
 
-constexpr geom::vec3 center{ 0, 0, 0}; // camera direction
-constexpr geom::vec3     up{ 0, 1, 0}; // camera up vector
-
-void lookat(geom::vec3 eye, geom::vec3 center, geom::vec3 up);
-void init_perspective(const double f);
-void init_viewport(const int x, const int y, const int w, const int h);
-void init_zbuffer(const int width, const int height);
-void init_zbuffer(const int width, const int height);
-
-void create_zbuffer_image(TGAImage& zbuffer_image);
-void save_depth_buffer(const std::vector<double>& buffer, int width, int height, const std::string& filename);
+    void save_zbuffer(const std::string& filename);
+};
 
 struct IShader {
     virtual ~IShader() = default;

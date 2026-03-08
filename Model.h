@@ -5,6 +5,8 @@
 #include "Geometry.h"
 #include "tgaimage.h"
 
+class Pipeline;
+
 struct Triangle {
     geom::vec<3> a, b, c;
     float z_mid;
@@ -37,13 +39,17 @@ class Model
 public:
     Model(const std::string& fileName);
 
-    void draw_model(struct TGAImage& framebuffer, struct IShader& shader) const;
-    void draw_points(struct TGAImage& framebuffer, struct TGAColor color) const;
+    // Render methods
+    void draw_model(struct TGAImage& framebuffer, struct IShader& shader, Pipeline& pipeline) const;
+    void draw_points(struct TGAImage& framebuffer, struct TGAColor color, Pipeline& pipeline) const;
+
+    // Getters for vertex data
     geom::vec3 vert(int face, int vert) const;
     geom::vec3 normal(int face, int vert) const;
-    geom::vec3 normal_from_map(geom::vec2 uv) const;
     geom::vec2 uv(int face, int vert) const;
 
+    // Material sampling methods
+    geom::vec3 normal_from_map(geom::vec2 uv) const;
     TGAColor diffuse_from_map(geom::vec2 uv) const;
     double specular_from_map(geom::vec2 uv) const;
     TGAColor glow_from_map(geom::vec2 uv) const;

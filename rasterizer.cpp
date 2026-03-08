@@ -2,7 +2,6 @@
 #include "filesystem"
 #include <algorithm>
 #include <cmath>
-#include "ModelsNames.h"
 #include "Geometry.h"
 #include "color.h"
 #include "our_gl.h"
@@ -38,7 +37,7 @@ void line(int ax, int ay, int bx, int by, TGAImage& framebuffer, TGAColor color)
         {
             framebuffer.set(x, y, color);
         }
-        /* чтобы убрать деление умножаем угловой коэфф на dx, а для 0.5f в условии домножаем на 2 */
+
         ierror += slope;
         if (ierror > bx - ax)
         {
@@ -48,18 +47,16 @@ void line(int ax, int ay, int bx, int by, TGAImage& framebuffer, TGAColor color)
     }
 }
 
-void triangle_barycentric_bounding_box(geom::vec4* clip_coords, TGAImage& framebuffer, const IShader& shader) {
+void triangle_barycentric_bounding_box(geom::vec4* clip_coords, TGAImage& framebuffer, const IShader& shader, Pipeline& pipeline) {
 
-    //Clip Space -> NDC (Normalized Device Coordinates)
     geom::vec3 points[3];
     for (int i = 0; i < 3; i++) {
         points[i] = geom::vec3(clip_coords[i].x / clip_coords[i].w, clip_coords[i].y / clip_coords[i].w, clip_coords[i].z / clip_coords[i].w);
     }
 
-    //NDC -> Screen Space
     geom::vec3 s_pts[3];
     for (int i = 0; i < 3; i++) {
-        geom::vec4 translation = Viewport * geom::vec4(points[i].x, points[i].y, points[i].z, 1.0);
+        geom::vec4 translation = pipeline.Viewport * geom::vec4(points[i].x, points[i].y, points[i].z, 1.0);
         s_pts[i] = geom::vec3({translation.x, translation.y, translation.z});
     }
 
@@ -85,12 +82,11 @@ void triangle_barycentric_bounding_box(geom::vec4* clip_coords, TGAImage& frameb
             int idx = x + y * framebuffer.width();
             geom::vec<3> bc = {static_cast<float>(alpha), static_cast<float>(beta), static_cast<float>(gamma)};
 
-
-            if (zbuffer[idx] < z) {
+            if (pipeline.zbuffer[idx] < z) {
                 auto [discard, color] = shader.fragment(bc);
 
                 if (!discard) {
-                    zbuffer[idx] = z;
+                    pipeline.zbuffer[idx] = z;
                     framebuffer.set(x, y, color);
                 }
             }

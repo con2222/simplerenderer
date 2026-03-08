@@ -6,14 +6,14 @@
 #include <fstream>
 #include <string>
 #include <sstream>
-#include "ModelsNames.h"
 #include "color.h"
 #include "Geometry.h"
 #include "rasterizer.h"
 #include "our_gl.h"
-#include "Shaders.h"
 
 namespace fs = std::filesystem;
+
+constexpr size_t POINT_SIZE = 1;
 
 std::ostream& operator<<(std::ostream& s, const geom::vec<3>& v) {
     s << "(" << v.x << ", " << v.y << ", " << v.z << ")" << std::endl;
@@ -34,22 +34,37 @@ std::ostream& operator<<(std::ostream& s, const Face& face) {
 Model::Model(const std::string& fileName) {
     std::string line;
     std::string digits = "-0123456789";
+
     std::string nm_filename = fileName.substr(0, fileName.find_last_of('.')) + "_nm.tga";
     std::string diffuse_filename = fileName.substr(0, fileName.find_last_of('.')) + "_diffuse.tga";
     std::string specular_filename = fileName.substr(0, fileName.find_last_of('.')) + "_spec.tga";
     std::string glow_filename = fileName.substr(0, fileName.find_last_of('.')) + "_glow.tga";
     std::string normaltangentmap_filename = fileName.substr(0, fileName.find_last_of('.')) + "_nm_tangent.tga";
 
-    normalmap.read_tga_file(nm_filename);
-    normalmap.flip_vertically();
-    diffusemap.read_tga_file(diffuse_filename);
-    diffusemap.flip_vertically();
-    specularmap.read_tga_file(specular_filename);
-    specularmap.flip_vertically();
-    normaltangentmap.read_tga_file(normaltangentmap_filename);
-    normaltangentmap.flip_vertically();
-    //glowmap.read_tga_file(glow_filename);
+    if (fs::exists(diffuse_filename)) {
+        diffusemap.read_tga_file(diffuse_filename);
+        diffusemap.flip_vertically();
+    }
 
+    if (fs::exists(nm_filename)) {
+        normalmap.read_tga_file(nm_filename);
+        normalmap.flip_vertically();
+    }
+
+    if (fs::exists(specular_filename)) {
+        specularmap.read_tga_file(specular_filename);
+        specularmap.flip_vertically();
+    }
+
+    if (fs::exists(normaltangentmap_filename)) {
+        normaltangentmap.read_tga_file(normaltangentmap_filename);
+        normaltangentmap.flip_vertically();
+    }
+
+    if (fs::exists(glow_filename)) {
+        glowmap.read_tga_file(glow_filename);
+        glowmap.flip_vertically();
+    }
 
     std::ifstream in(fileName);
 
@@ -132,7 +147,9 @@ Model::Model(const std::string& fileName) {
     in.close();
 }
 
-void Model::draw_model(TGAImage& framebuffer, IShader& shader) const {
+void Model::draw_model(TGAImage& framebuffer, IShader& shader, Pipeline& pipeline) const {
+    static int global_frame_count = 0;
+    int save_every_n = 50;
 
     for (size_t i = 0; i < faces.size(); i++) {
         geom::vec4 clip_coords[3];
@@ -143,12 +160,18 @@ void Model::draw_model(TGAImage& framebuffer, IShader& shader) const {
             world_coords[j] = vert(i, j);
         }
 
-        triangle_barycentric_bounding_box(clip_coords, framebuffer, shader);
+        triangle_barycentric_bounding_box(clip_coords, framebuffer, shader, pipeline);
+
+        if (global_frame_count % save_every_n == 0) {
+            std::string filename = "frames/frame_" + std::to_string(global_frame_count / save_every_n) + ".tga";
+            framebuffer.write_tga_file(filename);
+        }
+        global_frame_count++;
     }
 }
 
-void Model::draw_points(TGAImage& framebuffer, TGAColor color) const {
-    geom::matrix<4, 4> T = Viewport * Perspective * ModelView;
+void Model::draw_points(TGAImage& framebuffer, TGAColor color, Pipeline& pipeline) const {
+    geom::matrix<4, 4> T = pipeline.Viewport * pipeline.Perspective * pipeline.ModelView;
 
     for (size_t i = 0; i < verts.size(); i++) {
         geom::vec<4> v({verts[i].x, verts[i].y, verts[i].z, 1.0});
@@ -178,52 +201,56 @@ geom::vec2 Model::uv(int face, int vert) const {
 }
 
 geom::vec3 Model::normal_from_map(geom::vec2 uv) const {
+    if (normalmap.width() == 0) return geom::vec3(0, 0, 1);
+
     int x = std::max(0, std::min((int)(uv.x * normalmap.width()),  normalmap.width() - 1));
     int y = std::max(0, std::min((int)(uv.y * normalmap.height()), normalmap.height() - 1));
 
     TGAColor c = normalmap.get(x, y);
-
     geom::vec3 res;
     res[0] = (double)c.bgra[2] / 255.0 * 2.0 - 1.0;
     res[1] = (double)c.bgra[1] / 255.0 * 2.0 - 1.0;
     res[2] = (double)c.bgra[0] / 255.0 * 2.0 - 1.0;
-
     return normalize(res);
 }
 
 TGAColor Model::diffuse_from_map(geom::vec2 uv) const {
-    int x = std::max(0, std::min((int)(uv.x * normalmap.width()),  normalmap.width() - 1));
-    int y = std::max(0, std::min((int)(uv.y * normalmap.height()), normalmap.height() - 1));
-    TGAColor c = diffusemap.get(x, y);
+    if (diffusemap.width() == 0) return TGAColor{255, 255, 255, 255};
 
-    return c;
+    int x = std::max(0, std::min((int)(uv.x * diffusemap.width()),  diffusemap.width() - 1));
+    int y = std::max(0, std::min((int)(uv.y * diffusemap.height()), diffusemap.height() - 1));
+
+    return diffusemap.get(x, y);
 }
 
 double Model::specular_from_map(geom::vec2 uv) const {
-    int x = std::max(0, std::min((int)(uv.x * normalmap.width()),  normalmap.width() - 1));
-    int y = std::max(0, std::min((int)(uv.y * normalmap.height()), normalmap.height() - 1));
+    if (specularmap.width() == 0) return 0.0;
+
+    int x = std::max(0, std::min((int)(uv.x * specularmap.width()),  specularmap.width() - 1));
+    int y = std::max(0, std::min((int)(uv.y * specularmap.height()), specularmap.height() - 1));
 
     return specularmap.get(x, y).bgra[0] / 255.0;
 }
 
 TGAColor Model::glow_from_map(geom::vec2 uv) const {
-    int x = std::max(0, std::min((int)(uv.x * normalmap.width()),  normalmap.width() - 1));
-    int y = std::max(0, std::min((int)(uv.y * normalmap.height()), normalmap.height() - 1));
+    if (glowmap.width() == 0) return TGAColor{0, 0, 0, 255};
 
-    TGAColor c = glowmap.get(x, y);
-    return c;
+    int x = std::max(0, std::min((int)(uv.x * glowmap.width()),  glowmap.width() - 1));
+    int y = std::max(0, std::min((int)(uv.y * glowmap.height()), glowmap.height() - 1));
+
+    return glowmap.get(x, y);
 }
 
 geom::vec3 Model::normal_from_tangent_map(geom::vec2 uv) const {
-    int x = std::max(0, std::min((int)(uv.x * normalmap.width()),  normalmap.width() - 1));
-    int y = std::max(0, std::min((int)(uv.y * normalmap.height()), normalmap.height() - 1));
+    if (normaltangentmap.width() == 0) return geom::vec3(0, 0, 1);
+
+    int x = std::max(0, std::min((int)(uv.x * normaltangentmap.width()),  normaltangentmap.width() - 1));
+    int y = std::max(0, std::min((int)(uv.y * normaltangentmap.height()), normaltangentmap.height() - 1));
 
     TGAColor c = normaltangentmap.get(x, y);
-
     geom::vec3 res;
-    res[0] = (double)c.bgra[2] / 255 * 2.0 - 1.0;
-    res[1] = (double)c.bgra[1] / 255 * 2.0 - 1.0;
-    res[2] = (double)c.bgra[0] / 255 * 2.0 - 1.0;
-
+    res[0] = (double)c.bgra[2] / 255.0 * 2.0 - 1.0;
+    res[1] = (double)c.bgra[1] / 255.0 * 2.0 - 1.0;
+    res[2] = (double)c.bgra[0] / 255.0 * 2.0 - 1.0;
     return normalize(res);
 }
