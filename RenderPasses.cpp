@@ -328,6 +328,12 @@ void apply_post_processing(TGAImage& framebuffer, const Pipeline& pipeline, cons
     #pragma omp parallel for
     for (int y = 1; y < height - 1; y++) {
         for (int x = 1; x < width - 1; x++) {
+            int idx = x + y * width;
+
+            if (pipeline.zbuffer[idx] == -std::numeric_limits<double>::max()) {
+                continue;
+            }
+
             TGAColor color = framebuffer.get(x, y);
 
             // Sobel edge detection using the depth buffer
@@ -372,10 +378,10 @@ void render_scene(TGAImage& framebuffer, Pipeline& pipeline, const std::vector<M
 
     const geom::vec3 light_dir_world = light_dir;
 
-    // Clear screen to white
+    // Clear screen to background color
     for (int i = 0; i < width; i++) {
         for (int j = 0; j < height; j++) {
-            framebuffer.set(i, j, dark_gray);
+            framebuffer.set(i, j, black);
         }
     }
 
