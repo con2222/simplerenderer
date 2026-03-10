@@ -94,5 +94,3 @@ cmake --build build --config Release
 ./build/tinyrenderer -m obj/model.obj -shader toon -ao none -l -1 1 1
 
 ```
-
----
