@@ -84,13 +84,13 @@ cmake --build build --config Release
 
 ```powershell
 # Запуск с SSAO и Tangent Space Normal Mapping
-./build/Release/tinyrenderer.exe -m obj/diablo3_pose/diablo3_pose.obj -shader tangentspace -ao ssao -c gold
+./build/Release/simplerenderer.exe -m obj/diablo3_pose/diablo3_pose.obj -shader tangentspace -ao ssao -c gold
 
 ```
 
 **Linux:**
 
 ```bash
-./build/tinyrenderer -m obj/model.obj -shader toon -ao none -l -1 1 1
+./build/simplerenderer -m obj/model.obj -shader toon -ao none -l -1 1 1
 
 ```
